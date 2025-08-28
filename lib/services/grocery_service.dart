@@ -1,0 +1,152 @@
+import 'package:grocery_glide/database/grocery_database.dart';
+import 'package:isar/isar.dart';
+
+import '../model/grocery_item.dart';
+
+class GroceryService {
+  static final Isar _isar = GroceryDatabase.instance;
+  
+  // Add a new grocery item
+  static Future<int> addItem(GroceryItem item) async {
+    return await _isar.writeTxn(() async {
+      return await _isar.groceryItems.put(item);
+    });
+  }
+  
+  // Get all grocery items
+  static Future<List<GroceryItem>> getAllItems() async {
+    return await _isar.groceryItems.where().findAll();
+  }
+  
+  
+  // Get bought items
+  static Future<List<GroceryItem>> getBoughtItems() async {
+    return await _isar.groceryItems
+        .filter()
+        .isBoughtEqualTo(true)
+        .findAll();
+  }
+  
+  // Get unbought items
+  static Future<List<GroceryItem>> getUnboughtItems() async {
+    return await _isar.groceryItems
+        .filter()
+        .isBoughtEqualTo(false)
+        .findAll();
+  }
+  
+  // Update an item
+  static Future<int> updateItem(GroceryItem item) async {
+    item.touch();
+    return await _isar.writeTxn(() async {
+      return await _isar.groceryItems.put(item);
+    });
+  }
+  
+  // Toggle bought status
+  static Future<void> toggleBoughtStatus(int id) async {
+    await _isar.writeTxn(() async {
+      final item = await _isar.groceryItems.get(id);
+      if (item != null) {
+        item.isBought = !item.isBought;
+        item.touch();
+        await _isar.groceryItems.put(item);
+      }
+    });
+  }
+  
+  // Delete an item
+  static Future<bool> deleteItem(int id) async {
+    return await _isar.writeTxn(() async {
+      return await _isar.groceryItems.delete(id);
+    });
+  }
+  
+  // Delete all items
+  static Future<int> deleteAllItems() async {
+    return await _isar.writeTxn(() async {
+      return await _isar.groceryItems.where().deleteAll();
+    });
+  }
+  
+  // Reset all items to unbought (for monthly template reset)
+  static Future<void> resetAllItemsToUnbought() async {
+    await _isar.writeTxn(() async {
+      final items = await _isar.groceryItems.where().findAll();
+      for (final item in items) {
+        item.isBought = false;
+        item.touch();
+      }
+      await _isar.groceryItems.putAll(items);
+    });
+  }
+  
+  // Get total cost of all items
+  static Future<double> getTotalCost() async {
+    final items = await getAllItems();
+    return items.fold<double>(0.0, (sum, item) => sum + item.totalPrice);
+  }
+  
+  // Get total cost of bought items
+  static Future<double> getBoughtItemsCost() async {
+    final items = await getBoughtItems();
+    return items.fold<double>(0.0, (sum, item) => sum + item.totalPrice);
+  }
+  
+  // Get remaining cost (unbought items)
+  static Future<double> getRemainingCost() async {
+    final items = await getUnboughtItems();
+    return items.fold<double>(0.0, (sum, item) => sum + item.totalPrice);
+  }
+  
+  // Search items by name
+  static Future<List<GroceryItem>> searchItems(String query) async {
+    return await _isar.groceryItems
+        .filter()
+        .itemNameContains(query, caseSensitive: false)
+        .findAll();
+  }
+  
+  // Get shopping progress (percentage of bought items)
+  static Future<double> getShoppingProgress() async {
+    final allItems = await getAllItems();
+    if (allItems.isEmpty) return 0.0;
+    
+    final boughtCount = allItems.where((item) => item.isBought).length;
+    return (boughtCount / allItems.length) * 100;
+  }
+  
+  // Create monthly template from current list
+  static Future<List<GroceryItem>> createMonthlyTemplate() async {
+    final items = await getAllItems();
+    final templateItems = <GroceryItem>[];
+    
+    await _isar.writeTxn(() async {
+      // Clear existing items
+      await _isar.groceryItems.where().deleteAll();
+      
+      // Create new template items (reset to unbought)
+      for (final item in items) {
+        final templateItem = GroceryItem.fromTemplate(item);
+        templateItems.add(templateItem);
+      }
+      
+      // Save template items
+      await _isar.groceryItems.putAll(templateItems);
+    });
+    
+    return templateItems;
+  }
+  
+  // Stream for real-time updates
+  static Stream<List<GroceryItem>> watchAllItems() {
+    return _isar.groceryItems.where().watch(fireImmediately: true);
+  }
+  
+  static Stream<List<GroceryItem>> watchUnboughtItems() {
+    return _isar.groceryItems
+        .filter()
+        .isBoughtEqualTo(false)
+        .watch(fireImmediately: true);
+  }
+}
