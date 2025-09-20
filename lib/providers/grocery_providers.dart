@@ -9,10 +9,10 @@ final groceryItemsProvider = StreamProvider<List<GroceryItem>>((ref) {
   return GroceryService.watchAllItems();
 });
 
-// Provider for filtered items (unbought only)
-final unboughtItemsProvider = StreamProvider<List<GroceryItem>>((ref) {
-  return GroceryService.watchUnboughtItems();
-});
+// // Provider for filtered items (unbought only)
+// final unboughtItemsProvider = StreamProvider<List<GroceryItem>>((ref) {
+//   return GroceryService.watchUnboughtItems();
+// });
 
 // Provider for search query
 final searchQueryProvider = StateProvider<String>((ref) => '');
@@ -63,7 +63,6 @@ final filteredGroceryItemsProvider = Provider<AsyncValue<List<GroceryItem>>>((re
 
 // Provider for grocery statistics
 final groceryStatsProvider = Provider<AsyncValue<GroceryStats>>((ref) {
-  // final groceryItemsAsync = ref.watch(groceryItemsProvider);
   final selectedMonth = ref.watch(selectedMonthProvider);
   final monthlyItemsAsync = ref.watch(monthlyGroceryItemsProvider(selectedMonth));
 
@@ -96,6 +95,10 @@ final selectedMonthProvider = StateProvider<String>((ref) {
 final monthlyGroceryItemsProvider = StreamProvider.family<List<GroceryItem>, String>((ref, monthKey) {
   return GroceryService.watchMonthlyItems(monthKey);
 });
+
+// final ensureMonthlyItemsProvider = FutureProvider.family<void, String>((ref, monthKey) async{
+//   await GroceryService.ensureMonthlyItemsExist(monthKey);
+// },);
 
 // Statistics model
 class GroceryStats {

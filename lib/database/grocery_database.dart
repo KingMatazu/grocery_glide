@@ -8,7 +8,7 @@ class GroceryDatabase {
   // Initialize the database
   static Future<void> initialize() async {
     final dir = await getApplicationDocumentsDirectory();
-    
+    // print('Isar is storing data at: ${dir.path}\\isar');
     _isar = await Isar.open(
       [GroceryItemSchema],
       directory: dir.path,

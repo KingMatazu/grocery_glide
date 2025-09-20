@@ -4,6 +4,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:grocery_glide/model/grocery_item.dart';
 import 'package:grocery_glide/providers/grocery_providers.dart';
 import 'package:grocery_glide/services/grocery_service.dart';
+import 'package:grocery_glide/views/profile_and_settings_screen.dart';
 import 'package:grocery_glide/widgets/month_picker_widget.dart';
 import 'package:intl/intl.dart';
 
@@ -62,18 +63,6 @@ class _GroceryListScreenState extends ConsumerState<GroceryListScreen> {
     }
   }
 
-  // double get totalAmount {
-  //   return groceryItems.fold(0.0, (sum, item) => sum + item.totalPrice);
-  // }
-
-  // int get boughtItemsCount {
-  //   return groceryItems.where((item) => item.isBought).length;
-  // }
-
-  // String get currentMonth {
-  //   return DateFormat('MMMM yyyy').format(DateTime.now());
-  // }
-
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
@@ -93,8 +82,6 @@ class _GroceryListScreenState extends ConsumerState<GroceryListScreen> {
   @override
   Widget build(BuildContext context) {
     final filteredItemsAsync = ref.watch(filteredGroceryItemsProvider);
-    // final selectedMonth = ref.watch(selectedMonthProvider);
-    // final monthlyItemsAsync = ref.watch(monthlyGroceryItemsProvider(selectedMonth));
     final statsAsync = ref.watch(groceryStatsProvider);
     return Scaffold(
       backgroundColor: const Color(0xFF2D2D2D),
@@ -204,7 +191,7 @@ class GroceryHeader extends ConsumerWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withAlpha(60),
+                    color: Colors.white.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(25),
                   ),
                   child: Row(
@@ -222,15 +209,18 @@ class GroceryHeader extends ConsumerWidget {
                   ),
                 ),
               ),
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(60),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withAlpha(100)),
+              GestureDetector(
+                onTap: () => _navigateToProfile(context),
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white.withValues(alpha: 1)),
+                  ),
+                  child: const Icon(Icons.person, color: Colors.white, size: 24),
                 ),
-                child: const Icon(Icons.person, color: Colors.white, size: 24),
               ),
             ],
           ),
@@ -278,7 +268,7 @@ class GroceryHeader extends ConsumerWidget {
                     Text(
                       '${stats!.completionPercentage.toStringAsFixed(1)}% Complete',
                       style: TextStyle(
-                        color: Colors.white.withAlpha(150),
+                        color: Colors.white.withValues(alpha: 1.5),
                         fontSize: 12,
                         fontStyle: FontStyle.italic,
                       ),
@@ -291,7 +281,7 @@ class GroceryHeader extends ConsumerWidget {
             // Progress bar
             LinearProgressIndicator(
               value: stats!.completionPercentage / 100,
-              backgroundColor: Colors.white.withAlpha(30),
+              backgroundColor: Colors.white.withValues(alpha: 0.3),
               valueColor: AlwaysStoppedAnimation<Color>(Colors.green.shade300),
               minHeight: 4,
             ),
@@ -306,11 +296,21 @@ class GroceryHeader extends ConsumerWidget {
   }
 }
 
+void _navigateToProfile(BuildContext context){
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => const ProfileAndSettingsScreen()),
+  );
+}
+
 void _showMonthPicker(BuildContext context, WidgetRef ref) {
   showModalBottomSheet(
     context: context,
     builder: (context) => MonthPickerWidget(
-      onMonthSelected: (monthKey) {
+      onMonthSelected: (monthKey) async{
+        print('Month selected: $monthKey'); // debug log
+        // Ensure items exist for the selected month
+        await GroceryService.ensureMonthlyItemsExist(monthKey);
         ref.read(selectedMonthProvider.notifier).state = monthKey;
         Navigator.pop(context);
       },
@@ -346,10 +346,10 @@ class SearchAndFilterBar extends ConsumerWidget {
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: 'Search items...',
-                hintStyle: TextStyle(color: Colors.white.withAlpha(100)),
-                prefixIcon: Icon(Icons.search, color: Colors.white.withAlpha(100)),
+                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 1)),
+                prefixIcon: Icon(Icons.search, color: Colors.white.withValues(alpha: 1)),
                 filled: true,
-                fillColor: Colors.white.withAlpha(20),
+                fillColor: Colors.white.withValues(alpha: 0.2),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -359,9 +359,9 @@ class SearchAndFilterBar extends ConsumerWidget {
             ),
           ),
           Container(
-            margin: EdgeInsets.all(5),
+            margin: const EdgeInsets.all(5),
             decoration: BoxDecoration(
-              color: Colors.white.withAlpha(20),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: DropdownButton<FilterType>(
@@ -408,13 +408,13 @@ class EmptyStateWidget extends ConsumerWidget {
           Icon(
             Icons.shopping_cart_outlined,
             size: 64,
-            color: Colors.white.withAlpha(100),
+            color: Colors.white.withValues(alpha: 0.2),
           ),
           const SizedBox(height: 16),
           Text(
             'No items found for $monthName',
             style: TextStyle(
-              color: Colors.white.withAlpha(150),
+              color: Colors.white.withValues(alpha: 0.15),
               fontSize: 18,
               fontWeight: FontWeight.w500,
             ),
@@ -423,7 +423,7 @@ class EmptyStateWidget extends ConsumerWidget {
           Text(
             'Switch to current month or create from template',
             style: TextStyle(
-              color: Colors.white.withAlpha(100),
+              color: Colors.white.withValues(alpha: 1),
               fontSize: 14,
             ),
           ),
@@ -486,7 +486,7 @@ class GroceryListItem extends StatelessWidget {
           decoration: BoxDecoration(
             color: item.isBought
                 ? Colors.white.withValues(alpha: 0.1)
-                : Colors.white.withAlpha(50),
+                : Colors.white.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: item.isBought
@@ -507,7 +507,7 @@ class GroceryListItem extends StatelessWidget {
                     border: Border.all(
                       color: item.isBought
                           ? Colors.green
-                          : Colors.white.withAlpha(25),
+                          : Colors.white.withValues(alpha: 0.25),
                       width: 2,
                     ),
                     borderRadius: BorderRadius.circular(4),
@@ -526,7 +526,7 @@ class GroceryListItem extends StatelessWidget {
                       item.itemName,
                       style: TextStyle(
                         color: item.isBought
-                            ? Colors.white.withAlpha(50)
+                            ? Colors.white.withValues(alpha: 0.5)
                             : Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w500,
@@ -541,7 +541,7 @@ class GroceryListItem extends StatelessWidget {
                       style: TextStyle(
                         color: item.isBought
                             ? Colors.white.withValues(alpha: 0.7)
-                            : Colors.white.withAlpha(50),
+                            : Colors.white.withValues(alpha: 0.5),
                         fontSize: 14,
                         decoration: item.isBought
                             ? TextDecoration.lineThrough
@@ -558,7 +558,7 @@ class GroceryListItem extends StatelessWidget {
                     'Qty: ${item.quantity}',
                     style: TextStyle(
                       color: item.isBought
-                          ? Colors.white.withAlpha(50)
+                          ? Colors.white.withValues(alpha: 0.5)
                           : Colors.white,
                       fontSize: 14,
                       fontWeight: FontWeight.w400,

@@ -4,79 +4,158 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grocery_glide/model/grocery_item.dart';
 import 'package:grocery_glide/providers/grocery_providers.dart';
 import 'package:grocery_glide/services/grocery_service.dart';
+import 'package:grocery_glide/views/grocery_list_screen.dart';
+import 'package:intl/intl.dart';
 
-class MasterTemplateScreen extends ConsumerWidget {
+class MasterTemplateScreen extends ConsumerStatefulWidget {
   const MasterTemplateScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final masterItemsAsync = ref.watch(masterTemplateProvider);
+  ConsumerState<MasterTemplateScreen> createState() => _MasterTemplateScreenState();
+}
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF2D2D2D),
-      appBar: AppBar(
-        title: const Text('Master Template'),
-        backgroundColor: Colors.transparent,
-        actions: [
-          PopupMenuButton(
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'import_default',
-                child: Text('Import Default Template'),
+class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
+  List<GroceryItem> stagingItems = [];
+  bool hasUnsavedChanges = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingTemplate();
+  }
+
+  Future<void> _loadExistingTemplate() async {
+    final existingItems = await GroceryService.getMasterTemplateItems();
+    setState(() {
+      stagingItems = List.from(existingItems);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: () async {
+        if (hasUnsavedChanges) {
+          return await _showUnsavedChangesDialog();
+        }
+        return true;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF2D2D2D),
+        appBar: AppBar(
+          title: const Text('Master Template'),
+          backgroundColor: Colors.transparent,
+          actions: [
+            if (hasUnsavedChanges)
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                child: const Icon(Icons.circle, color: Colors.orange, size: 8),
               ),
-              const PopupMenuItem(
-                value: 'create_from_current',
-                child: Text('Create from Current Month'),
+            TextButton(
+              onPressed: _saveTemplate,
+              child: const Text(
+                'Done',
+                style: TextStyle(
+                  color: Colors.green,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ],
-            onSelected: (value) {
-              if (value == 'import_default') {
-                _importDefaultTemplate(context);
-              } else if (value == 'create_from_current') {
-                _createFromCurrentMonth(context, ref);
-              }
-            },
-          ),
-        ],
-      ),
-      body: masterItemsAsync.when(
-        data: (items) => items.isEmpty
-            ? _buildEmptyState(context)
+            ),
+            PopupMenuButton(
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'import_default',
+                  child: Text('Import Default Template'),
+                ),
+                const PopupMenuItem(
+                  value: 'create_from_current',
+                  child: Text('Create from Current Month'),
+                ),
+                const PopupMenuItem(
+                  value: 'clear_all',
+                  child: Text('Clear All Items'),
+                ),
+              ],
+              onSelected: (value) {
+                switch (value) {
+                  case 'import_default':
+                    _importDefaultTemplate();
+                    break;
+                  case 'create_from_current':
+                    _createFromCurrentMonth();
+                    break;
+                  case 'clear_all':
+                    _clearAllItems();
+                    break;
+                }
+              },
+            ),
+          ],
+        ),
+        body: stagingItems.isEmpty
+            ? _buildEmptyState()
             : ListView.builder(
                 padding: const EdgeInsets.all(16),
-                itemCount: items.length,
+                itemCount: stagingItems.length,
                 itemBuilder: (context, index) => Card(
+                  color: const Color(0xFF3D3D3D),
                   child: ListTile(
-                    title: Text(items[index].itemName),
-                    subtitle: Text('Qty: ${items[index].quantity}, Price: ${items[index].price}'),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete),
-                      onPressed: () => _deleteTemplateItem(items[index]),
+                    title: Text(
+                      stagingItems[index].itemName,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    subtitle: Text(
+                      'Qty: ${stagingItems[index].quantity}, Price: \$${stagingItems[index].price.toStringAsFixed(2)}',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.blue),
+                          onPressed: () => _editItem(index),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _deleteItem(index),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Error: $error')),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _addTemplateItem(context),
-        child: const Icon(Icons.add),
+        floatingActionButton: FloatingActionButton(
+          onPressed: _addNewItem,
+          backgroundColor: const Color(0xFF4CAF50),
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(Icons.list_alt, size: 64, color: Colors.grey),
           const SizedBox(height: 16),
-          const Text('No master template created'),
-          const SizedBox(height: 16),
+          const Text(
+            'No master template items',
+            style: TextStyle(color: Colors.white, fontSize: 18),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Add items or import a default template',
+            style: TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+          const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: () => _importDefaultTemplate(context),
+            onPressed: _importDefaultTemplate,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4CAF50),
+            ),
             child: const Text('Import Default Template'),
           ),
         ],
@@ -84,38 +163,381 @@ class MasterTemplateScreen extends ConsumerWidget {
     );
   }
 
-  void _importDefaultTemplate(BuildContext context) {
+  void _importDefaultTemplate() {
     final defaultItems = [
       GroceryItem.template(itemName: 'Milk', quantity: 1, price: 3.50),
-      GroceryItem.template(itemName: 'Bread', quantity: 1, price: 2.00),
+      GroceryItem.template(itemName: 'Bread', quantity: 1, price: 2.50),
       GroceryItem.template(itemName: 'Eggs', quantity: 12, price: 4.00),
-      // Add more default items
+      GroceryItem.template(itemName: 'Bananas', quantity: 6, price: 2.00),
+      GroceryItem.template(itemName: 'Chicken Breast', quantity: 1, price: 8.00),
+      GroceryItem.template(itemName: 'Rice', quantity: 1, price: 3.00),
+      GroceryItem.template(itemName: 'Apples', quantity: 4, price: 3.50),
+      GroceryItem.template(itemName: 'Yogurt', quantity: 4, price: 5.00),
+      GroceryItem.template(itemName: 'Cheese', quantity: 1, price: 4.50),
+      GroceryItem.template(itemName: 'Tomatoes', quantity: 3, price: 2.50),
     ];
-    
-    GroceryService.createMasterTemplate(defaultItems);
+
+    setState(() {
+      // Add default items to staging, avoiding duplicates
+      for (final defaultItem in defaultItems) {
+        final exists = stagingItems.any(
+          (item) => item.itemName.toLowerCase() == defaultItem.itemName.toLowerCase(),
+        );
+        if (!exists) {
+          stagingItems.add(defaultItem);
+        }
+      }
+      hasUnsavedChanges = true;
+    });
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Default template imported!')),
+      SnackBar(
+        content: Text('Added ${defaultItems.length} default items to template'),
+        backgroundColor: Colors.green,
+      ),
     );
   }
 
-  void _createFromCurrentMonth(BuildContext context, WidgetRef ref) async {
+  void _createFromCurrentMonth() async {
     final currentMonth = ref.read(currentMonthProvider);
     final currentItems = await GroceryService.getMonthlyItems(currentMonth);
-    
-    await GroceryService.createMasterTemplate(currentItems);
-    if (context.mounted) {
+
+    if (currentItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Template created from current month!')),
+        const SnackBar(
+          content: Text('No items found in current month'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      stagingItems.clear();
+      for (final item in currentItems) {
+        stagingItems.add(GroceryItem.template(
+          itemName: item.itemName,
+          quantity: item.quantity,
+          price: item.price,
+          notes: item.notes,
+        ));
+      }
+      hasUnsavedChanges = true;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Imported ${currentItems.length} items from current month'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  void _clearAllItems() async {
+    if (stagingItems.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2D2D2D),
+        title: const Text('Clear All Items', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Are you sure you want to remove all items from the template?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Clear All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() {
+        stagingItems.clear();
+        hasUnsavedChanges = true;
+      });
+    }
+  }
+
+  void _deleteItem(int index) {
+    setState(() {
+      stagingItems.removeAt(index);
+      hasUnsavedChanges = true;
+    });
+  }
+
+  void _editItem(int index) async {
+    final item = stagingItems[index];
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => _TemplateItemDialog(
+        initialName: item.itemName,
+        initialQuantity: item.quantity,
+        initialPrice: item.price,
+        initialNotes: item.notes,
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        stagingItems[index] = GroceryItem.template(
+          itemName: result['name'],
+          quantity: result['quantity'],
+          price: result['price'],
+          notes: result['notes'],
+        );
+        hasUnsavedChanges = true;
+      });
+    }
+  }
+
+  void _addNewItem() async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => const _TemplateItemDialog(),
+    );
+
+    if (result != null) {
+      setState(() {
+        stagingItems.add(GroceryItem.template(
+          itemName: result['name'],
+          quantity: result['quantity'],
+          price: result['price'],
+          notes: result['notes'],
+        ));
+        hasUnsavedChanges = true;
+      });
+    }
+  }
+
+  Future<void> _saveTemplate() async {
+    try {
+      // Save all staging items as the master template
+      await GroceryService.createMasterTemplate(stagingItems);
+
+      // Create monthly items for current month
+      final currentMonth = DateFormat('yyyy-MM').format(DateTime.now());
+      await GroceryService.clearMonthlyItems(currentMonth);
+      await GroceryService.createMonthlyListFromTemplate(currentMonth);
+
+      setState(() {
+        hasUnsavedChanges = false;
+      });
+
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const GroceryListScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving template: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
 
-  void _addTemplateItem(BuildContext context) {
-    // Show dialog to add new template item
-    // Use your existing AddEditGroceryDialog
+  Future<bool> _showUnsavedChangesDialog() async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2D2D2D),
+        title: const Text('Unsaved Changes', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'You have unsaved changes. Do you want to discard them?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    ) ?? false;
+  }
+}
+
+// Enhanced dialog with editing capability
+class _TemplateItemDialog extends StatefulWidget {
+  final String? initialName;
+  final int? initialQuantity;
+  final double? initialPrice;
+  final String? initialNotes;
+
+  const _TemplateItemDialog({
+    this.initialName,
+    this.initialQuantity,
+    this.initialPrice,
+    this.initialNotes,
+  });
+
+  @override
+  State<_TemplateItemDialog> createState() => __TemplateItemDialogState();
+}
+
+class __TemplateItemDialogState extends State<_TemplateItemDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
+  late final TextEditingController _quantityController;
+  late final TextEditingController _priceController;
+  late final TextEditingController _notesController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialName ?? '');
+    _quantityController = TextEditingController(text: widget.initialQuantity?.toString() ?? '1');
+    _priceController = TextEditingController(text: widget.initialPrice?.toString() ?? '');
+    _notesController = TextEditingController(text: widget.initialNotes ?? '');
   }
 
-  void _deleteTemplateItem(GroceryItem item) {
-    GroceryService.deleteItem(item.id);
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _quantityController.dispose();
+    _priceController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF2D2D2D),
+      title: Text(
+        widget.initialName != null ? 'Edit Template Item' : 'Add Template Item',
+        style: const TextStyle(color: Colors.white),
+      ),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Item Name',
+                labelStyle: TextStyle(color: Colors.white70),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white30),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.green),
+                ),
+              ),
+              style: const TextStyle(color: Colors.white),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter item name';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _quantityController,
+              decoration: const InputDecoration(
+                labelText: 'Quantity',
+                labelStyle: TextStyle(color: Colors.white70),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white30),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.green),
+                ),
+              ),
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter quantity';
+                }
+                if (int.tryParse(value) == null || int.parse(value) <= 0) {
+                  return 'Please enter valid quantity';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _priceController,
+              decoration: const InputDecoration(
+                labelText: 'Price',
+                labelStyle: TextStyle(color: Colors.white70),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white30),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.green),
+                ),
+              ),
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter price';
+                }
+                if (double.tryParse(value) == null || double.parse(value) <= 0) {
+                  return 'Please enter valid price';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _notesController,
+              decoration: const InputDecoration(
+                labelText: 'Notes (Optional)',
+                labelStyle: TextStyle(color: Colors.white70),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white30),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.green),
+                ),
+              ),
+              style: const TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              Navigator.pop(context, {
+                'name': _nameController.text.trim(),
+                'quantity': int.parse(_quantityController.text),
+                'price': double.parse(_priceController.text),
+                'notes': _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+              });
+            }
+          },
+          child: Text(widget.initialName != null ? 'Update' : 'Add'),
+        ),
+      ],
+    );
   }
 }
