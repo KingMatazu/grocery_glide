@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:isar/isar.dart';
 
 part 'grocery_item.g.dart'; // This will be generated
@@ -15,6 +16,10 @@ class GroceryItem {
   
   
   bool isBought = false;
+  bool isMasterTemplate = false;
+
+  @Index()
+  String? monthKey;
   
   @Index()
   late DateTime createdAt;
@@ -31,9 +36,11 @@ class GroceryItem {
     required this.price,
     this.isBought = false,
     this.notes,
+    this.monthKey,
   }) {
     createdAt = DateTime.now();
     updatedAt = DateTime.now();
+    monthKey ??= DateFormat('yyyy-MM').format(DateTime.now());
   }
   
   // Named constructor for template creation
@@ -42,9 +49,11 @@ class GroceryItem {
     required this.quantity,
     required this.price,
     this.notes,
+    this.monthKey,
   }) : isBought = false {
     createdAt = DateTime.now();
     updatedAt = DateTime.now();
+    monthKey ??= DateFormat('yyyy-MM').format(DateTime.now());
   }
   
   // Copy constructor for creating new instances from template
@@ -53,9 +62,11 @@ class GroceryItem {
     quantity = template.quantity,
     price = template.price,
     isBought = false,
-    notes = template.notes {
+    notes = template.notes,
+    monthKey = template.monthKey {
     createdAt = DateTime.now();
     updatedAt = DateTime.now();
+    monthKey ??= DateFormat('yyyy-MM').format(DateTime.now());
   }
   
   // Calculate total price for this item

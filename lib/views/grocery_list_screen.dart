@@ -1,50 +1,42 @@
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:grocery_glide/model/grocery_item.dart';
+import 'package:grocery_glide/providers/grocery_providers.dart';
 import 'package:grocery_glide/services/grocery_service.dart';
+import 'package:grocery_glide/widgets/month_picker_widget.dart';
 import 'package:intl/intl.dart';
 
-class GroceryListScreen extends StatefulWidget {
+class GroceryListScreen extends ConsumerStatefulWidget {
   const GroceryListScreen({super.key});
 
   @override
-  State<GroceryListScreen> createState() => _GroceryListScreenState();
+  ConsumerState<GroceryListScreen> createState() => _GroceryListScreenState();
 }
 
-class _GroceryListScreenState extends State<GroceryListScreen> {
-  List<GroceryItem> groceryItems = [];
-  bool isLoading = true;
+class _GroceryListScreenState extends ConsumerState<GroceryListScreen> {
+  final _searchController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    _loadGroceryItems();
-  }
-
-  Future<void> _loadGroceryItems() async {
-    setState(() => isLoading = true);
-    try {
-      final items = await GroceryService.getAllItems();
-      setState(() {
-        groceryItems = items;
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() => isLoading = false);
-      _showErrorSnackBar('Failed to load items: $e');
-    }
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _deleteItem(GroceryItem item) async {
     try {
       await GroceryService.deleteItem(item.id);
-      setState(() {
-        groceryItems.removeWhere((i) => i.id == item.id);
-      });
       _showSnackBar('${item.itemName} deleted');
     } catch (e) {
       _showErrorSnackBar('Failed to delete item: $e');
+    }
+  }
+
+  Future<void> _toggleItemBought(GroceryItem item) async {
+    try {
+      await GroceryService.toggleBoughtStatus(item.id);
+    } catch (e) {
+      _showErrorSnackBar('Failed to update item: $e');
     }
   }
 
@@ -53,9 +45,9 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
       context: context,
       builder: (context) => AddEditGroceryDialog(item: item),
     );
-    
+
     if (result != null) {
-      await _loadGroceryItems();
+      _showSnackBar('Item updated successfully');
     }
   }
 
@@ -64,23 +56,27 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
       context: context,
       builder: (context) => const AddEditGroceryDialog(),
     );
-    
+
     if (result != null) {
-      await _loadGroceryItems();
+      _showSnackBar('Item added successfully');
     }
   }
 
-  double get totalAmount {
-    return groceryItems.fold(0.0, (sum, item) => sum + item.totalPrice);
-  }
+  // double get totalAmount {
+  //   return groceryItems.fold(0.0, (sum, item) => sum + item.totalPrice);
+  // }
 
-  String get currentMonth {
-    return DateFormat('MMMM yyyy').format(DateTime.now());
-  }
+  // int get boughtItemsCount {
+  //   return groceryItems.where((item) => item.isBought).length;
+  // }
+
+  // String get currentMonth {
+  //   return DateFormat('MMMM yyyy').format(DateTime.now());
+  // }
 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
   }
 
@@ -89,54 +85,88 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final filteredItemsAsync = ref.watch(filteredGroceryItemsProvider);
+    // final selectedMonth = ref.watch(selectedMonthProvider);
+    // final monthlyItemsAsync = ref.watch(monthlyGroceryItemsProvider(selectedMonth));
+    final statsAsync = ref.watch(groceryStatsProvider);
     return Scaffold(
       backgroundColor: const Color(0xFF2D2D2D),
       body: SafeArea(
         child: Column(
           children: [
-            // Header
-            GroceryHeader(
-              month: currentMonth,
-              itemCount: groceryItems.length,
-              total: totalAmount,
+            // Header with stats
+            statsAsync.when(
+              data: (stats) => GroceryHeader(stats: stats, onMonthTap: () => _showMonthPicker(context, ref),),
+              loading: () => const GroceryHeader(stats: null),
+              error: (_, _) => const GroceryHeader(stats: null),
             ),
-            
+            //
+            SearchAndFilterBar(
+              searchController: _searchController,
+              onSearchChanged: (query) {
+                ref.read(searchQueryProvider.notifier).state = query;
+              },
+              onFilterChanged: (filter) {
+                ref.read(filterTypeProvider.notifier).state = filter;
+              },
+            ),
             // List
             Expanded(
-              child: isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                      ),
-                    )
-                  : groceryItems.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'No items in your grocery list\nTap + to add items',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 16,
-                            ),
-                          ),
-                        )
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  // Refresh is automatic with streams, but we can add haptic feedback
+                  await Future.delayed(const Duration(milliseconds: 300));
+                },
+                child: filteredItemsAsync.when(
+                  data: (items) => items.isEmpty
+                      ? const EmptyStateWidget()
                       : ListView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: groceryItems.length,
+                          itemCount: items.length,
                           itemBuilder: (context, index) {
+                            final item = items[index];
                             return GroceryListItem(
-                              item: groceryItems[index],
-                              onEdit: () => _editItem(groceryItems[index]),
-                              onDelete: () => _deleteItem(groceryItems[index]),
+                              key: ValueKey(item.id),
+                              item: item,
+                              onEdit: () => _editItem(item),
+                              onDelete: () => _deleteItem(item),
+                              onToggleBought: () => _toggleItemBought(item),
                             );
                           },
                         ),
+                  loading: () => const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
+                  error: (error, _) => Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error, color: Colors.red, size: 48),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error: $error',
+                          style: const TextStyle(color: Colors.white70),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () {
+                            ref.invalidate(groceryItemsProvider);
+                          },
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -150,21 +180,17 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
   }
 }
 
-// Header Component
-class GroceryHeader extends StatelessWidget {
-  final String month;
-  final int itemCount;
-  final double total;
+// Header with real-time stats
+class GroceryHeader extends ConsumerWidget {
+  final GroceryStats? stats;
+  final VoidCallback? onMonthTap;
 
-  const GroceryHeader({
-    super.key,
-    required this.month,
-    required this.itemCount,
-    required this.total,
-  });
+  const GroceryHeader({super.key, required this.stats, this.onMonthTap});
+
+  String get currentMonth => DateFormat('MMMM yyyy').format(DateTime.now());
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -173,21 +199,26 @@ class GroceryHeader extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(25),
-                ),
-                child: Text(
-                  month,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+              GestureDetector(
+                onTap: () => _showMonthPicker(context, ref),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(60),
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        DateFormat('MMM yyyy').format(DateTime.parse('${ref.watch(selectedMonthProvider)}-01')),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const Icon(Icons.keyboard_arrow_down, color: Colors.white,),
+                    ],
                   ),
                 ),
               ),
@@ -195,44 +226,207 @@ class GroceryHeader extends StatelessWidget {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: Colors.white.withAlpha(60),
                   shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white.withAlpha(100)),
                 ),
-                child: const Icon(
-                  Icons.person,
-                  color: Colors.white,
-                  size: 24,
-                ),
+                child: const Icon(Icons.person, color: Colors.white, size: 24),
               ),
             ],
           ),
-          
           const SizedBox(height: 20),
-          
-          // Stats row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'No. Items: $itemCount',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w400,
+
+          // Stats row with progress indicator
+          if (stats != null) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Items: ${stats!.totalItems}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Bought: ${stats!.boughtItems}',
+                      style: TextStyle(
+                        color: Colors.green.shade300,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              Text(
-                'Total: ${NumberFormat('#,##0.00').format(total)}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Total: ${NumberFormat('#,##0.00').format(stats!.boughtCost)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${stats!.completionPercentage.toStringAsFixed(1)}% Complete',
+                      style: TextStyle(
+                        color: Colors.white.withAlpha(150),
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
                 ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Progress bar
+            LinearProgressIndicator(
+              value: stats!.completionPercentage / 100,
+              backgroundColor: Colors.white.withAlpha(30),
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.green.shade300),
+              minHeight: 4,
+            ),
+          ] else
+            const CircularProgressIndicator(
+              color: Colors.white,
+              strokeWidth: 2,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+void _showMonthPicker(BuildContext context, WidgetRef ref) {
+  showModalBottomSheet(
+    context: context,
+    builder: (context) => MonthPickerWidget(
+      onMonthSelected: (monthKey) {
+        ref.read(selectedMonthProvider.notifier).state = monthKey;
+        Navigator.pop(context);
+      },
+    ),
+  );
+}
+
+// Search and Filter Bar
+class SearchAndFilterBar extends ConsumerWidget {
+  final TextEditingController searchController;
+  final ValueChanged<String> onSearchChanged;
+  final ValueChanged<FilterType> onFilterChanged;
+
+  const SearchAndFilterBar({
+    super.key,
+    required this.searchController,
+    required this.onSearchChanged,
+    required this.onFilterChanged,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentFilter = ref.watch(filterTypeProvider);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: searchController,
+              onChanged: onSearchChanged,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Search items...',
+                hintStyle: TextStyle(color: Colors.white.withAlpha(100)),
+                prefixIcon: Icon(Icons.search, color: Colors.white.withAlpha(100)),
+                filled: true,
+                fillColor: Colors.white.withAlpha(20),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
-            ],
+            ),
           ),
-          
-          const SizedBox(height: 10),
+          Container(
+            margin: EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(20),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: DropdownButton<FilterType>(
+              value: currentFilter,
+              onChanged: (value) => onFilterChanged(value!),
+              dropdownColor: const Color(0xFF2D2D2D),
+              underline: const SizedBox(),
+              padding: EdgeInsets.symmetric(horizontal: 10,),
+              icon: const Icon(Icons.filter_list, color: Colors.white),
+              items: const [
+                DropdownMenuItem(
+                  value: FilterType.all,
+                  child: Text('All', style: TextStyle(color: Colors.white)),
+                ),
+                DropdownMenuItem(
+                  value: FilterType.unbought,
+                  child: Text('Todo', style: TextStyle(color: Colors.white)),
+                ),
+                DropdownMenuItem(
+                  value: FilterType.bought,
+                  child: Text('Done', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Empty State Widget
+class EmptyStateWidget extends ConsumerWidget {
+  const EmptyStateWidget({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedMonth = ref.watch(selectedMonthProvider);
+    final monthName = DateFormat('MMMM yyyy').format(DateTime.parse('$selectedMonth-01'));
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.shopping_cart_outlined,
+            size: 64,
+            color: Colors.white.withAlpha(100),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No items found for $monthName',
+            style: TextStyle(
+              color: Colors.white.withAlpha(150),
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Switch to current month or create from template',
+            style: TextStyle(
+              color: Colors.white.withAlpha(100),
+              fontSize: 14,
+            ),
+          ),
         ],
       ),
     );
@@ -244,12 +438,14 @@ class GroceryListItem extends StatelessWidget {
   final GroceryItem item;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onToggleBought;
 
   const GroceryListItem({
     super.key,
     required this.item,
     required this.onEdit,
     required this.onDelete,
+    required this.onToggleBought,
   });
 
   @override
@@ -288,33 +484,68 @@ class GroceryListItem extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.1),
+            color: item.isBought
+                ? Colors.white.withValues(alpha: 0.1)
+                : Colors.white.withAlpha(50),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.2),
+              color: item.isBought
+                  ? Colors.white.withValues(alpha: 0.2)
+                  : Colors.white.withValues(alpha: 0.5),
               width: 1,
             ),
           ),
           child: Row(
             children: [
+              GestureDetector(
+                onTap: onToggleBought,
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: item.isBought ? Colors.green : Colors.transparent,
+                    border: Border.all(
+                      color: item.isBought
+                          ? Colors.green
+                          : Colors.white.withAlpha(25),
+                      width: 2,
+                    ),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: item.isBought
+                      ? const Icon(Icons.check, size: 16, color: Colors.white)
+                      : null,
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       item.itemName,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: item.isBought
+                            ? Colors.white.withAlpha(50)
+                            : Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w500,
+                        decoration: item.isBought
+                            ? TextDecoration.lineThrough
+                            : null,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'price: ${item.price.toStringAsFixed(0)}',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
+                        color: item.isBought
+                            ? Colors.white.withValues(alpha: 0.7)
+                            : Colors.white.withAlpha(50),
                         fontSize: 14,
+                        decoration: item.isBought
+                            ? TextDecoration.lineThrough
+                            : null,
                       ),
                     ),
                   ],
@@ -325,19 +556,29 @@ class GroceryListItem extends StatelessWidget {
                 children: [
                   Text(
                     'Qty: ${item.quantity}',
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: item.isBought
+                          ? Colors.white.withAlpha(50)
+                          : Colors.white,
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
+                      decoration: item.isBought
+                          ? TextDecoration.lineThrough
+                          : null,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Amount: ${item.totalPrice.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: item.isBought
+                          ? Colors.green.shade300
+                          : Colors.white,
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
+                      decoration: item.isBought
+                          ? TextDecoration.lineThrough
+                          : null,
                     ),
                   ),
                 ],
@@ -411,15 +652,14 @@ class _AddEditGroceryDialogState extends State<AddEditGroceryDialog> {
         item.notes = _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim();
-        
+
         await GroceryService.updateItem(item);
       } else {
         await GroceryService.addItem(item);
       }
 
       if (!mounted) return;
-        Navigator.of(context).pop(item);
-      
+      Navigator.of(context).pop(item);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -435,9 +675,7 @@ class _AddEditGroceryDialogState extends State<AddEditGroceryDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: const Color(0xFF2D2D2D),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         padding: const EdgeInsets.all(24),
         constraints: const BoxConstraints(maxWidth: 400),
@@ -456,9 +694,9 @@ class _AddEditGroceryDialogState extends State<AddEditGroceryDialog> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               _buildTextField(
                 controller: _nameController,
                 label: 'Item Name',
@@ -469,9 +707,9 @@ class _AddEditGroceryDialogState extends State<AddEditGroceryDialog> {
                   return null;
                 },
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               Row(
                 children: [
                   Expanded(
@@ -483,7 +721,8 @@ class _AddEditGroceryDialogState extends State<AddEditGroceryDialog> {
                         if (value == null || value.trim().isEmpty) {
                           return 'Enter quantity';
                         }
-                        if (int.tryParse(value) == null || int.parse(value) <= 0) {
+                        if (int.tryParse(value) == null ||
+                            int.parse(value) <= 0) {
                           return 'Enter valid quantity';
                         }
                         return null;
@@ -500,7 +739,8 @@ class _AddEditGroceryDialogState extends State<AddEditGroceryDialog> {
                         if (value == null || value.trim().isEmpty) {
                           return 'Enter price';
                         }
-                        if (double.tryParse(value) == null || double.parse(value) <= 0) {
+                        if (double.tryParse(value) == null ||
+                            double.parse(value) <= 0) {
                           return 'Enter valid price';
                         }
                         return null;
@@ -509,17 +749,17 @@ class _AddEditGroceryDialogState extends State<AddEditGroceryDialog> {
                   ),
                 ],
               ),
-                            
+
               const SizedBox(height: 16),
-              
+
               _buildTextField(
                 controller: _notesController,
                 label: 'Notes (Optional)',
                 maxLines: 2,
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               Row(
                 children: [
                   Expanded(
@@ -529,7 +769,9 @@ class _AddEditGroceryDialogState extends State<AddEditGroceryDialog> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                          side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.3),
+                          ),
                         ),
                       ),
                       child: const Text(

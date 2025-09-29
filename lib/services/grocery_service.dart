@@ -149,4 +149,62 @@ class GroceryService {
         .isBoughtEqualTo(false)
         .watch(fireImmediately: true);
   }
+
+  // Master template methods
+static Future<void> createMasterTemplate(List<GroceryItem> items) async {
+  await _isar.writeTxn(() async {
+    // Clear existing master template
+    await _isar.groceryItems.filter().isMasterTemplateEqualTo(true).deleteAll();
+    
+    // Create new master template items
+    final templateItems = items.map((item) => GroceryItem.template(
+      itemName: item.itemName,
+      quantity: item.quantity,
+      price: item.price,
+      notes: item.notes,
+    )..isMasterTemplate = true).toList();
+    
+    await _isar.groceryItems.putAll(templateItems);
+  });
+}
+
+static Stream<List<GroceryItem>> watchMasterTemplate() {
+  return _isar.groceryItems
+      .filter()
+      .isMasterTemplateEqualTo(true)
+      .watch(fireImmediately: true);
+}
+
+static Stream<List<GroceryItem>> watchMonthlyItems(String monthKey) {
+  return _isar.groceryItems
+      .filter()
+      .monthKeyEqualTo(monthKey)
+      .watch(fireImmediately: true);
+}
+
+static Future<List<GroceryItem>> getMonthlyItems(String monthKey) async {
+  return await _isar.groceryItems
+      .filter()
+      .monthKeyEqualTo(monthKey)
+      .findAll();
+}
+
+static Future<void> createMonthlyListFromTemplate(String monthKey) async {
+  final masterItems = await _isar.groceryItems.filter().isMasterTemplateEqualTo(true).findAll();
+  
+  await _isar.writeTxn(() async {
+    // Clear existing monthly items
+    await _isar.groceryItems.filter().monthKeyEqualTo(monthKey).deleteAll();
+    
+    // Create monthly items from template
+    final monthlyItems = masterItems.map((item) => GroceryItem(
+      itemName: item.itemName,
+      quantity: item.quantity,
+      price: item.price,
+      notes: item.notes,
+    )..monthKey = monthKey).toList();
+    
+    await _isar.groceryItems.putAll(monthlyItems);
+  });
+}
 }

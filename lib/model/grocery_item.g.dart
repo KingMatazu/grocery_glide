@@ -27,33 +27,43 @@ const GroceryItemSchema = CollectionSchema(
       name: r'isBought',
       type: IsarType.bool,
     ),
-    r'itemName': PropertySchema(
+    r'isMasterTemplate': PropertySchema(
       id: 2,
+      name: r'isMasterTemplate',
+      type: IsarType.bool,
+    ),
+    r'itemName': PropertySchema(
+      id: 3,
       name: r'itemName',
       type: IsarType.string,
     ),
+    r'monthKey': PropertySchema(
+      id: 4,
+      name: r'monthKey',
+      type: IsarType.string,
+    ),
     r'notes': PropertySchema(
-      id: 3,
+      id: 5,
       name: r'notes',
       type: IsarType.string,
     ),
     r'price': PropertySchema(
-      id: 4,
+      id: 6,
       name: r'price',
       type: IsarType.double,
     ),
     r'quantity': PropertySchema(
-      id: 5,
+      id: 7,
       name: r'quantity',
       type: IsarType.long,
     ),
     r'totalPrice': PropertySchema(
-      id: 6,
+      id: 8,
       name: r'totalPrice',
       type: IsarType.double,
     ),
     r'updatedAt': PropertySchema(
-      id: 7,
+      id: 9,
       name: r'updatedAt',
       type: IsarType.dateTime,
     )
@@ -72,6 +82,19 @@ const GroceryItemSchema = CollectionSchema(
       properties: [
         IndexPropertySchema(
           name: r'itemName',
+          type: IndexType.hash,
+          caseSensitive: true,
+        )
+      ],
+    ),
+    r'monthKey': IndexSchema(
+      id: -6349924167704926890,
+      name: r'monthKey',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'monthKey',
           type: IndexType.hash,
           caseSensitive: true,
         )
@@ -107,6 +130,12 @@ int _groceryItemEstimateSize(
   var bytesCount = offsets.last;
   bytesCount += 3 + object.itemName.length * 3;
   {
+    final value = object.monthKey;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
     final value = object.notes;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
@@ -123,12 +152,14 @@ void _groceryItemSerialize(
 ) {
   writer.writeDateTime(offsets[0], object.createdAt);
   writer.writeBool(offsets[1], object.isBought);
-  writer.writeString(offsets[2], object.itemName);
-  writer.writeString(offsets[3], object.notes);
-  writer.writeDouble(offsets[4], object.price);
-  writer.writeLong(offsets[5], object.quantity);
-  writer.writeDouble(offsets[6], object.totalPrice);
-  writer.writeDateTime(offsets[7], object.updatedAt);
+  writer.writeBool(offsets[2], object.isMasterTemplate);
+  writer.writeString(offsets[3], object.itemName);
+  writer.writeString(offsets[4], object.monthKey);
+  writer.writeString(offsets[5], object.notes);
+  writer.writeDouble(offsets[6], object.price);
+  writer.writeLong(offsets[7], object.quantity);
+  writer.writeDouble(offsets[8], object.totalPrice);
+  writer.writeDateTime(offsets[9], object.updatedAt);
 }
 
 GroceryItem _groceryItemDeserialize(
@@ -139,14 +170,16 @@ GroceryItem _groceryItemDeserialize(
 ) {
   final object = GroceryItem(
     isBought: reader.readBoolOrNull(offsets[1]) ?? false,
-    itemName: reader.readString(offsets[2]),
-    notes: reader.readStringOrNull(offsets[3]),
-    price: reader.readDouble(offsets[4]),
-    quantity: reader.readLong(offsets[5]),
+    itemName: reader.readString(offsets[3]),
+    monthKey: reader.readStringOrNull(offsets[4]),
+    notes: reader.readStringOrNull(offsets[5]),
+    price: reader.readDouble(offsets[6]),
+    quantity: reader.readLong(offsets[7]),
   );
   object.createdAt = reader.readDateTime(offsets[0]);
   object.id = id;
-  object.updatedAt = reader.readDateTime(offsets[7]);
+  object.isMasterTemplate = reader.readBool(offsets[2]);
+  object.updatedAt = reader.readDateTime(offsets[9]);
   return object;
 }
 
@@ -162,16 +195,20 @@ P _groceryItemDeserializeProp<P>(
     case 1:
       return (reader.readBoolOrNull(offset) ?? false) as P;
     case 2:
-      return (reader.readString(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 3:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 4:
-      return (reader.readDouble(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 5:
-      return (reader.readLong(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 6:
       return (reader.readDouble(offset)) as P;
     case 7:
+      return (reader.readLong(offset)) as P;
+    case 8:
+      return (reader.readDouble(offset)) as P;
+    case 9:
       return (reader.readDateTime(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -315,6 +352,72 @@ extension GroceryItemQueryWhere
               indexName: r'itemName',
               lower: [],
               upper: [itemName],
+              includeUpper: false,
+            ));
+      }
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterWhereClause> monthKeyIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'monthKey',
+        value: [null],
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterWhereClause>
+      monthKeyIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'monthKey',
+        lower: [null],
+        includeLower: false,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterWhereClause> monthKeyEqualTo(
+      String? monthKey) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'monthKey',
+        value: [monthKey],
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterWhereClause> monthKeyNotEqualTo(
+      String? monthKey) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'monthKey',
+              lower: [],
+              upper: [monthKey],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'monthKey',
+              lower: [monthKey],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'monthKey',
+              lower: [monthKey],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'monthKey',
+              lower: [],
+              upper: [monthKey],
               includeUpper: false,
             ));
       }
@@ -534,6 +637,16 @@ extension GroceryItemQueryFilter
     });
   }
 
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition>
+      isMasterTemplateEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isMasterTemplate',
+        value: value,
+      ));
+    });
+  }
+
   QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition> itemNameEqualTo(
     String value, {
     bool caseSensitive = true,
@@ -664,6 +777,159 @@ extension GroceryItemQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'itemName',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition>
+      monthKeyIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'monthKey',
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition>
+      monthKeyIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'monthKey',
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition> monthKeyEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'monthKey',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition>
+      monthKeyGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'monthKey',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition>
+      monthKeyLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'monthKey',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition> monthKeyBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'monthKey',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition>
+      monthKeyStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'monthKey',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition>
+      monthKeyEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'monthKey',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition>
+      monthKeyContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'monthKey',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition> monthKeyMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'monthKey',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition>
+      monthKeyIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'monthKey',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition>
+      monthKeyIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'monthKey',
         value: '',
       ));
     });
@@ -1091,6 +1357,20 @@ extension GroceryItemQuerySortBy
     });
   }
 
+  QueryBuilder<GroceryItem, GroceryItem, QAfterSortBy>
+      sortByIsMasterTemplate() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isMasterTemplate', Sort.asc);
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterSortBy>
+      sortByIsMasterTemplateDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isMasterTemplate', Sort.desc);
+    });
+  }
+
   QueryBuilder<GroceryItem, GroceryItem, QAfterSortBy> sortByItemName() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'itemName', Sort.asc);
@@ -1100,6 +1380,18 @@ extension GroceryItemQuerySortBy
   QueryBuilder<GroceryItem, GroceryItem, QAfterSortBy> sortByItemNameDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'itemName', Sort.desc);
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterSortBy> sortByMonthKey() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'monthKey', Sort.asc);
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterSortBy> sortByMonthKeyDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'monthKey', Sort.desc);
     });
   }
 
@@ -1202,6 +1494,20 @@ extension GroceryItemQuerySortThenBy
     });
   }
 
+  QueryBuilder<GroceryItem, GroceryItem, QAfterSortBy>
+      thenByIsMasterTemplate() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isMasterTemplate', Sort.asc);
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterSortBy>
+      thenByIsMasterTemplateDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isMasterTemplate', Sort.desc);
+    });
+  }
+
   QueryBuilder<GroceryItem, GroceryItem, QAfterSortBy> thenByItemName() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'itemName', Sort.asc);
@@ -1211,6 +1517,18 @@ extension GroceryItemQuerySortThenBy
   QueryBuilder<GroceryItem, GroceryItem, QAfterSortBy> thenByItemNameDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'itemName', Sort.desc);
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterSortBy> thenByMonthKey() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'monthKey', Sort.asc);
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterSortBy> thenByMonthKeyDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'monthKey', Sort.desc);
     });
   }
 
@@ -1289,10 +1607,24 @@ extension GroceryItemQueryWhereDistinct
     });
   }
 
+  QueryBuilder<GroceryItem, GroceryItem, QDistinct>
+      distinctByIsMasterTemplate() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'isMasterTemplate');
+    });
+  }
+
   QueryBuilder<GroceryItem, GroceryItem, QDistinct> distinctByItemName(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'itemName', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QDistinct> distinctByMonthKey(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'monthKey', caseSensitive: caseSensitive);
     });
   }
 
@@ -1348,9 +1680,21 @@ extension GroceryItemQueryProperty
     });
   }
 
+  QueryBuilder<GroceryItem, bool, QQueryOperations> isMasterTemplateProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'isMasterTemplate');
+    });
+  }
+
   QueryBuilder<GroceryItem, String, QQueryOperations> itemNameProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'itemName');
+    });
+  }
+
+  QueryBuilder<GroceryItem, String?, QQueryOperations> monthKeyProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'monthKey');
     });
   }
 
