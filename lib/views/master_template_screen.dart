@@ -33,12 +33,15 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        if (hasUnsavedChanges) {
-          return await _showUnsavedChangesDialog();
+    return PopScope(
+      canPop: !hasUnsavedChanges,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+
+        final shouldPop = await _showUnsavedChangesDialog();
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop();
         }
-        return true;
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF2D2D2D),

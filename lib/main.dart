@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grocery_glide/database/grocery_database.dart';
@@ -61,7 +62,9 @@ class SplashScreen extends StatelessWidget {
         if (!isFirstTime) {
           WidgetsBinding.instance.addPostFrameCallback((_) async{
             final currentMonth = DateFormat('yyyy-MM').format(DateTime.now());
-            print('App startup: ensuring items for $currentMonth'); // debug log
+            if (kDebugMode) {
+              print('App startup: ensuring items for $currentMonth');
+            } // debug log
             await GroceryService.ensureMonthlyItemsExist(currentMonth);
           });
         }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:grocery_glide/database/grocery_database.dart';
 import 'package:isar/isar.dart';
 
@@ -7,50 +8,46 @@ class GroceryService {
   static final Isar _isar = GroceryDatabase.instance;
 
   // Debug method to check whats in the database
-  static Future<void> debugDatabaseContents() async{
+  static Future<void> debugDatabaseContents() async {
     final allItems = await _isar.groceryItems.where().findAll();
-    print('==== DATABASE CONTENTS ======');
-    for (final item in allItems){
-      print('Item: ${item.itemName}');
-      print('   - month: ${item.monthKey}');
-      print('   - is master template: ${item.isMasterTemplate}');
-      print('   - id: ${item.id}');
-      print('   - is bought: ${item.isBought}');
-      print('----');
+    if (kDebugMode) {
+      print('==== DATABASE CONTENTS ======');
+
+      for (final item in allItems) {
+        print('Item: ${item.itemName}');
+        print('   - month: ${item.monthKey}');
+        print('   - is master template: ${item.isMasterTemplate}');
+        print('   - id: ${item.id}');
+        print('   - is bought: ${item.isBought}');
+        print('----');
+      }
+      print('Total items: ${allItems.length}');
+      print('=================================');
     }
-    print('Total items: ${allItems.length}');
-    print('=================================');
   }
-  
+
   // Add a new grocery item
   static Future<int> addItem(GroceryItem item) async {
     return await _isar.writeTxn(() async {
       return await _isar.groceryItems.put(item);
     });
   }
-  
+
   // Get all grocery items
   static Future<List<GroceryItem>> getAllItems() async {
     return await _isar.groceryItems.where().findAll();
   }
-  
-  
+
   // Get bought items
   static Future<List<GroceryItem>> getBoughtItems() async {
-    return await _isar.groceryItems
-        .filter()
-        .isBoughtEqualTo(true)
-        .findAll();
+    return await _isar.groceryItems.filter().isBoughtEqualTo(true).findAll();
   }
-  
+
   // Get unbought items
   static Future<List<GroceryItem>> getUnboughtItems() async {
-    return await _isar.groceryItems
-        .filter()
-        .isBoughtEqualTo(false)
-        .findAll();
+    return await _isar.groceryItems.filter().isBoughtEqualTo(false).findAll();
   }
-  
+
   // Update an item
   static Future<int> updateItem(GroceryItem item) async {
     item.touch();
@@ -58,7 +55,7 @@ class GroceryService {
       return await _isar.groceryItems.put(item);
     });
   }
-  
+
   // Toggle bought status
   static Future<void> toggleBoughtStatus(int id) async {
     await _isar.writeTxn(() async {
@@ -70,21 +67,21 @@ class GroceryService {
       }
     });
   }
-  
+
   // Delete an item
   static Future<bool> deleteItem(int id) async {
     return await _isar.writeTxn(() async {
       return await _isar.groceryItems.delete(id);
     });
   }
-  
+
   // Delete all items
   static Future<int> deleteAllItems() async {
     return await _isar.writeTxn(() async {
       return await _isar.groceryItems.where().deleteAll();
     });
   }
-  
+
   // Reset all items to unbought (for monthly template reset)
   static Future<void> resetAllItemsToUnbought() async {
     await _isar.writeTxn(() async {
@@ -96,25 +93,25 @@ class GroceryService {
       await _isar.groceryItems.putAll(items);
     });
   }
-  
+
   // Get total cost of all items
   static Future<double> getTotalCost() async {
     final items = await getAllItems();
     return items.fold<double>(0.0, (sum, item) => sum + item.totalPrice);
   }
-  
+
   // Get total cost of bought items
   static Future<double> getBoughtItemsCost() async {
     final items = await getBoughtItems();
     return items.fold<double>(0.0, (sum, item) => sum + item.totalPrice);
   }
-  
+
   // Get remaining cost (unbought items)
   static Future<double> getRemainingCost() async {
     final items = await getUnboughtItems();
     return items.fold<double>(0.0, (sum, item) => sum + item.totalPrice);
   }
-  
+
   // Search items by name
   static Future<List<GroceryItem>> searchItems(String query) async {
     return await _isar.groceryItems
@@ -122,43 +119,43 @@ class GroceryService {
         .itemNameContains(query, caseSensitive: false)
         .findAll();
   }
-  
+
   // Get shopping progress (percentage of bought items)
   static Future<double> getShoppingProgress() async {
     final allItems = await getAllItems();
     if (allItems.isEmpty) return 0.0;
-    
+
     final boughtCount = allItems.where((item) => item.isBought).length;
     return (boughtCount / allItems.length) * 100;
   }
-  
+
   // Create monthly template from current list
   static Future<List<GroceryItem>> createMonthlyTemplate() async {
     final items = await getAllItems();
     final templateItems = <GroceryItem>[];
-    
+
     await _isar.writeTxn(() async {
       // Clear existing items
       await _isar.groceryItems.where().deleteAll();
-      
+
       // Create new template items (reset to unbought)
       for (final item in items) {
         final templateItem = GroceryItem.fromTemplate(item);
         templateItems.add(templateItem);
       }
-      
+
       // Save template items
       await _isar.groceryItems.putAll(templateItems);
     });
-    
+
     return templateItems;
   }
-  
+
   // Stream for real-time updates
   static Stream<List<GroceryItem>> watchAllItems() {
     return _isar.groceryItems.where().watch(fireImmediately: true);
   }
-  
+
   static Stream<List<GroceryItem>> watchUnboughtItems() {
     return _isar.groceryItems
         .filter()
@@ -167,118 +164,145 @@ class GroceryService {
   }
 
   // Master template methods
-static Future<void> createMasterTemplate(List<GroceryItem> items) async {
-  await _isar.writeTxn(() async {
-    // Clear existing master template
-    await _isar.groceryItems.filter().isMasterTemplateEqualTo(true).deleteAll();
-    
-    // Create new master template items
-    final templateItems = items.map((item) => GroceryItem.template(
-      itemName: item.itemName,
-      quantity: item.quantity,
-      price: item.price,
-      notes: item.notes,
-    )..isMasterTemplate = true).toList();
-    
-    await _isar.groceryItems.putAll(templateItems);
-  });
-}
+  static Future<void> createMasterTemplate(List<GroceryItem> items) async {
+    await _isar.writeTxn(() async {
+      // Clear existing master template
+      await _isar.groceryItems
+          .filter()
+          .isMasterTemplateEqualTo(true)
+          .deleteAll();
 
-static Stream<List<GroceryItem>> watchMasterTemplate() {
-  return _isar.groceryItems
-      .filter()
-      .isMasterTemplateEqualTo(true)
-      .watch(fireImmediately: true);
-}
+      // Create new master template items
+      final templateItems = items
+          .map(
+            (item) => GroceryItem.template(
+              itemName: item.itemName,
+              quantity: item.quantity,
+              price: item.price,
+              notes: item.notes,
+            )..isMasterTemplate = true,
+          )
+          .toList();
 
-static Stream<List<GroceryItem>> watchMonthlyItems(String monthKey) {
-  return _isar.groceryItems
-      .filter()
-      .monthKeyEqualTo(monthKey)
-      .watch(fireImmediately: true);
-}
+      await _isar.groceryItems.putAll(templateItems);
+    });
+  }
 
-static Future<List<GroceryItem>> getMonthlyItems(String monthKey) async {
-  return await _isar.groceryItems
-      .filter()
-      .monthKeyEqualTo(monthKey)
-      .findAll();
-}
+  static Stream<List<GroceryItem>> watchMasterTemplate() {
+    return _isar.groceryItems
+        .filter()
+        .isMasterTemplateEqualTo(true)
+        .watch(fireImmediately: true);
+  }
 
-// Add this method to services/grocery_service.dart
+  static Stream<List<GroceryItem>> watchMonthlyItems(String monthKey) {
+    return _isar.groceryItems
+        .filter()
+        .monthKeyEqualTo(monthKey)
+        .watch(fireImmediately: true);
+  }
 
-static Future<List<GroceryItem>> getMasterTemplateItems() async {
-  return await _isar.groceryItems
-      .filter()
-      .isMasterTemplateEqualTo(true)
-      .findAll();
-}
+  static Future<List<GroceryItem>> getMonthlyItems(String monthKey) async {
+    return await _isar.groceryItems
+        .filter()
+        .monthKeyEqualTo(monthKey)
+        .findAll();
+  }
 
-static Future<void> createMonthlyListFromTemplate(String monthKey) async {
-  final masterItems = await _isar.groceryItems.filter().isMasterTemplateEqualTo(true).findAll();
-  
-  await _isar.writeTxn(() async {
-    // Clear existing monthly items
-    await _isar.groceryItems.filter().monthKeyEqualTo(monthKey).and().isMasterTemplateEqualTo(false).deleteAll();
-    
-    // Create monthly items from template
-    final monthlyItems = masterItems.map((item) {
-      final newItem = GroceryItem(
-        itemName: item.itemName,
-        quantity: item.quantity,
-        price: item.price,
-        notes: item.notes,
-      );
-      newItem.monthKey = monthKey;
-      newItem.isMasterTemplate = false;
-      return newItem;
-    }).toList();
-    
-    await _isar.groceryItems.putAll(monthlyItems);
-  });
-}
+  // Add this method to services/grocery_service.dart
 
-static Future<void> clearMonthlyItems(String monthKey) async {
-  await _isar.writeTxn(() async {
-    await _isar.groceryItems
+  static Future<List<GroceryItem>> getMasterTemplateItems() async {
+    return await _isar.groceryItems
+        .filter()
+        .isMasterTemplateEqualTo(true)
+        .findAll();
+  }
+
+  static Future<void> createMonthlyListFromTemplate(String monthKey) async {
+    final masterItems = await _isar.groceryItems
+        .filter()
+        .isMasterTemplateEqualTo(true)
+        .findAll();
+
+    await _isar.writeTxn(() async {
+      // Clear existing monthly items
+      await _isar.groceryItems
+          .filter()
+          .monthKeyEqualTo(monthKey)
+          .and()
+          .isMasterTemplateEqualTo(false)
+          .deleteAll();
+
+      // Create monthly items from template
+      final monthlyItems = masterItems.map((item) {
+        final newItem = GroceryItem(
+          itemName: item.itemName,
+          quantity: item.quantity,
+          price: item.price,
+          notes: item.notes,
+        );
+        newItem.monthKey = monthKey;
+        newItem.isMasterTemplate = false;
+        return newItem;
+      }).toList();
+
+      await _isar.groceryItems.putAll(monthlyItems);
+    });
+  }
+
+  static Future<void> clearMonthlyItems(String monthKey) async {
+    await _isar.writeTxn(() async {
+      await _isar.groceryItems
+          .where()
+          .filter()
+          .monthKeyEqualTo(monthKey)
+          .and()
+          .isMasterTemplateEqualTo(false)
+          .deleteAll();
+    });
+  }
+
+  static Future<void> ensureMonthlyItemsExist(String monthKey) async {
+    if (kDebugMode) {
+      print('Checking monthly items for month : $monthKey');
+    }
+    final existingItem = await _isar.groceryItems
         .where()
         .filter()
         .monthKeyEqualTo(monthKey)
         .and()
         .isMasterTemplateEqualTo(false)
-        .deleteAll();
-  });
-}
+        .findAll();
 
-static Future<void> ensureMonthlyItemsExist(String monthKey) async{
-  print('Checking monthly items for month : $monthKey');
-    final existingItem = await _isar.groceryItems
-    .where()
-    .filter()
-    .monthKeyEqualTo(monthKey)
-    .and()
-    .isMasterTemplateEqualTo(false)
-    .findAll();
-
-    print('Found ${existingItem.length} existing items $monthKey');
+    if (kDebugMode) {
+      print('Found ${existingItem.length} existing items $monthKey');
+    }
 
     if (existingItem.isEmpty) {
       final masterItems = await _isar.groceryItems
-      .where()
-      .filter()
-      .isMasterTemplateEqualTo(true)
-      .findAll();
+          .where()
+          .filter()
+          .isMasterTemplateEqualTo(true)
+          .findAll();
 
-      print('Found ${masterItems.length} master temolate');
+      if (kDebugMode) {
+        print('Found ${masterItems.length} master temolate');
+      }
 
       if (masterItems.isNotEmpty) {
-        print('Creating monthly list from template for $monthKey');
+        if (kDebugMode) {
+          print('Creating monthly list from template for $monthKey');
+        }
         await createMonthlyListFromTemplate(monthKey);
       } else {
-        print('No master template items found');
+        if (kDebugMode) {
+          print('No master template items found');
+        }
       }
     } else {
-      print('Monthly items already exisit for $monthKey');
+      if (kDebugMode) {
+        print('Monthly items already exisit for $monthKey');
+      }
     }
   }
 }

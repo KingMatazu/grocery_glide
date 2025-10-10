@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -308,7 +309,9 @@ void _showMonthPicker(BuildContext context, WidgetRef ref) {
     context: context,
     builder: (context) => MonthPickerWidget(
       onMonthSelected: (monthKey) async{
-        print('Month selected: $monthKey'); // debug log
+        if (kDebugMode) {
+          print('Month selected: $monthKey');
+        } // debug log
         // Ensure items exist for the selected month
         await GroceryService.ensureMonthlyItemsExist(monthKey);
         ref.read(selectedMonthProvider.notifier).state = monthKey;
