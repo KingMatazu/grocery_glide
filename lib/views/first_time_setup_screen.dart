@@ -9,19 +9,19 @@ class FirstTimeSetupScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF2D2D2D),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.shopping_cart, size: 80, color: Colors.green.shade400),
+              Icon(Icons.shopping_cart, size: 80, color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7)),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Welcome to Grocery Glide!',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
@@ -31,7 +31,7 @@ class FirstTimeSetupScreen extends StatelessWidget {
               Text(
                 'Create your master grocery template to get started. This will be your monthly shopping list.',
                 style: TextStyle(
-                  color: Colors.white.withAlpha(180),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                   fontSize: 16,
                 ),
                 textAlign: TextAlign.center,
@@ -44,16 +44,16 @@ class FirstTimeSetupScreen extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () => _goToMasterTemplate(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade600,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Create Master Template',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -72,12 +72,12 @@ class FirstTimeSetupScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: Colors.white.withAlpha(60)),
+                      side: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24)),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Skip for Now',
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                    style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 16),
                   ),
                 ),
               ),

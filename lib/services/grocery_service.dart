@@ -199,6 +199,8 @@ class GroceryService {
     return _isar.groceryItems
         .filter()
         .monthKeyEqualTo(monthKey)
+        .and()
+        .isMasterTemplateEqualTo(false)
         .watch(fireImmediately: true);
   }
 

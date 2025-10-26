@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grocery_glide/database/grocery_database.dart';
 import 'package:grocery_glide/services/grocery_service.dart';
+import 'package:grocery_glide/themes/app_theme.dart';
+import 'package:grocery_glide/themes/theme_provider.dart';
 import 'package:grocery_glide/views/first_time_setup_screen.dart';
 import 'package:grocery_glide/views/grocery_list_screen.dart';
 import 'package:intl/intl.dart';
@@ -14,22 +16,20 @@ void main() async{
   runApp(const ProviderScope(child:  MainApp()));
 }
 
-class MainApp extends StatelessWidget {
+class MainApp extends ConsumerWidget {
   const MainApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Grocery Glide',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme:  ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4CAF50),
-          brightness: Brightness.dark,
-          surface: const Color(0xFF2D2D2D),
-        ),
-      ),
+      theme: AppTheme.lightTheme(),
+      darkTheme: AppTheme.darkTheme(),
+      themeMode: themeMode,
       home: const SplashScreen(),
     );
   }
@@ -50,10 +50,10 @@ class SplashScreen extends StatelessWidget {
       future: _checkFirstTimeUser(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            backgroundColor: Color(0xFF2D2D2D),
+          return Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             body: Center(
-              child: CircularProgressIndicator(color: Colors.green,),
+              child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary,),
             ),
           );
         }

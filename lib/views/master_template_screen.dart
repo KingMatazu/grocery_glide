@@ -1,17 +1,19 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grocery_glide/model/grocery_item.dart';
+import 'package:grocery_glide/providers/currency_provider.dart';
 import 'package:grocery_glide/providers/grocery_providers.dart';
 import 'package:grocery_glide/services/grocery_service.dart';
 import 'package:grocery_glide/views/grocery_list_screen.dart';
+import 'package:grocery_glide/widgets/currency_selector.dart';
 import 'package:intl/intl.dart';
 
 class MasterTemplateScreen extends ConsumerStatefulWidget {
   const MasterTemplateScreen({super.key});
 
   @override
-  ConsumerState<MasterTemplateScreen> createState() => _MasterTemplateScreenState();
+  ConsumerState<MasterTemplateScreen> createState() =>
+      _MasterTemplateScreenState();
 }
 
 class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
@@ -33,6 +35,7 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currencyFormatter = ref.watch(currencyFormatterProvider);
     return PopScope(
       canPop: !hasUnsavedChanges,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
@@ -44,7 +47,7 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFF2D2D2D),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
           title: const Text('Master Template'),
           backgroundColor: Colors.transparent,
@@ -56,10 +59,10 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
               ),
             TextButton(
               onPressed: _saveTemplate,
-              child: const Text(
+              child: Text(
                 'Done',
                 style: TextStyle(
-                  color: Colors.green,
+                  color: Theme.of(context).colorScheme.primary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -96,41 +99,64 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
             ),
           ],
         ),
-        body: stagingItems.isEmpty
-            ? _buildEmptyState()
-            : ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: stagingItems.length,
-                itemBuilder: (context, index) => Card(
-                  color: const Color(0xFF3D3D3D),
-                  child: ListTile(
-                    title: Text(
-                      stagingItems[index].itemName,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    subtitle: Text(
-                      'Qty: ${stagingItems[index].quantity}, Price: \$${stagingItems[index].price.toStringAsFixed(2)}',
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blue),
-                          onPressed: () => _editItem(index),
+        body: Column(
+          children: [
+            Container(
+              color: Theme.of(context).colorScheme.surface,
+              child: const CurrencySelector(),
+            ),
+            Divider(height: 1, color: Theme.of(context).dividerColor),
+            Expanded(
+              child: stagingItems.isEmpty
+                  ? _buildEmptyState()
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: stagingItems.length,
+                      itemBuilder: (context, index) => Card(
+                        color: Theme.of(context).colorScheme.surface,
+                        child: ListTile(
+                          title: Text(
+                            stagingItems[index].itemName,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Qty: ${stagingItems[index].quantity}, Price: ${stagingItems[index].price.formatCurrency(currencyFormatter)}',
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color,
+                            ),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit,
+                                  color: Colors.blue,
+                                ),
+                                onPressed: () => _editItem(index),
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.delete,
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                                onPressed: () => _deleteItem(index),
+                              ),
+                            ],
+                          ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _deleteItem(index),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
-              ),
+            ),
+          ],
+        ),
         floatingActionButton: FloatingActionButton(
           onPressed: _addNewItem,
-          backgroundColor: const Color(0xFF4CAF50),
+          backgroundColor: Theme.of(context).colorScheme.primary,
           child: const Icon(Icons.add),
         ),
       ),
@@ -144,22 +170,31 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
         children: [
           const Icon(Icons.list_alt, size: 64, color: Colors.grey),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'No master template items',
-            style: TextStyle(color: Colors.white, fontSize: 18),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontSize: 18,
+            ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Add items or import a default template',
-            style: TextStyle(color: Colors.white70, fontSize: 14),
+            style: TextStyle(
+              color: Theme.of(context).textTheme.bodyMedium?.color,
+              fontSize: 14,
+            ),
           ),
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: _importDefaultTemplate,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4CAF50),
+              backgroundColor: Theme.of(context).colorScheme.primary,
             ),
-            child: const Text('Import Default Template'),
+            child: Text(
+              'Import Default Template',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
           ),
         ],
       ),
@@ -172,7 +207,11 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
       GroceryItem.template(itemName: 'Bread', quantity: 1, price: 2.50),
       GroceryItem.template(itemName: 'Eggs', quantity: 12, price: 4.00),
       GroceryItem.template(itemName: 'Bananas', quantity: 6, price: 2.00),
-      GroceryItem.template(itemName: 'Chicken Breast', quantity: 1, price: 8.00),
+      GroceryItem.template(
+        itemName: 'Chicken Breast',
+        quantity: 1,
+        price: 8.00,
+      ),
       GroceryItem.template(itemName: 'Rice', quantity: 1, price: 3.00),
       GroceryItem.template(itemName: 'Apples', quantity: 4, price: 3.50),
       GroceryItem.template(itemName: 'Yogurt', quantity: 4, price: 5.00),
@@ -184,7 +223,8 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
       // Add default items to staging, avoiding duplicates
       for (final defaultItem in defaultItems) {
         final exists = stagingItems.any(
-          (item) => item.itemName.toLowerCase() == defaultItem.itemName.toLowerCase(),
+          (item) =>
+              item.itemName.toLowerCase() == defaultItem.itemName.toLowerCase(),
         );
         if (!exists) {
           stagingItems.add(defaultItem);
@@ -196,7 +236,7 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Added ${defaultItems.length} default items to template'),
-        backgroundColor: Colors.green,
+        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
   }
@@ -218,20 +258,24 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
     setState(() {
       stagingItems.clear();
       for (final item in currentItems) {
-        stagingItems.add(GroceryItem.template(
-          itemName: item.itemName,
-          quantity: item.quantity,
-          price: item.price,
-          notes: item.notes,
-        ));
+        stagingItems.add(
+          GroceryItem.template(
+            itemName: item.itemName,
+            quantity: item.quantity,
+            price: item.price,
+            notes: item.notes,
+          ),
+        );
       }
       hasUnsavedChanges = true;
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Imported ${currentItems.length} items from current month'),
-        backgroundColor: Colors.green,
+        content: Text(
+          'Imported ${currentItems.length} items from current month',
+        ),
+        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
   }
@@ -242,11 +286,16 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2D2D2D),
-        title: const Text('Clear All Items', style: TextStyle(color: Colors.white)),
-        content: const Text(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        title: Text(
+          'Clear All Items',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+        ),
+        content: Text(
           'Are you sure you want to remove all items from the template?',
-          style: TextStyle(color: Colors.white70),
+          style: TextStyle(
+            color: Theme.of(context).textTheme.bodyMedium?.color,
+          ),
         ),
         actions: [
           TextButton(
@@ -255,7 +304,9 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
             child: const Text('Clear All'),
           ),
         ],
@@ -310,12 +361,14 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
 
     if (result != null) {
       setState(() {
-        stagingItems.add(GroceryItem.template(
-          itemName: result['name'],
-          quantity: result['quantity'],
-          price: result['price'],
-          notes: result['notes'],
-        ));
+        stagingItems.add(
+          GroceryItem.template(
+            itemName: result['name'],
+            quantity: result['quantity'],
+            price: result['price'],
+            notes: result['notes'],
+          ),
+        );
         hasUnsavedChanges = true;
       });
     }
@@ -324,11 +377,14 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
   Future<void> _saveTemplate() async {
     try {
       // Save all staging items as the master template
+      // This will clear existing master template and save new ones
       await GroceryService.createMasterTemplate(stagingItems);
 
       // Create monthly items for current month
       final currentMonth = DateFormat('yyyy-MM').format(DateTime.now());
+      // Clear exisitng monthly items for current month
       await GroceryService.clearMonthlyItems(currentMonth);
+      // Create fresh monthly itmes for current month
       await GroceryService.createMonthlyListFromTemplate(currentMonth);
 
       setState(() {
@@ -346,7 +402,7 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error saving template: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     }
@@ -354,27 +410,35 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
 
   Future<bool> _showUnsavedChangesDialog() async {
     return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2D2D2D),
-        title: const Text('Unsaved Changes', style: TextStyle(color: Colors.white)),
-        content: const Text(
-          'You have unsaved changes. Do you want to discard them?',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            title: Text(
+              'Unsaved Changes',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
+            content: Text(
+              'You have unsaved changes. Do you want to discard them?',
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodyMedium?.color,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
+                ),
+                child: const Text('Discard'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Discard'),
-          ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
 }
 
@@ -407,8 +471,12 @@ class __TemplateItemDialogState extends State<_TemplateItemDialog> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.initialName ?? '');
-    _quantityController = TextEditingController(text: widget.initialQuantity?.toString() ?? '1');
-    _priceController = TextEditingController(text: widget.initialPrice?.toString() ?? '');
+    _quantityController = TextEditingController(
+      text: widget.initialQuantity?.toString() ?? '1',
+    );
+    _priceController = TextEditingController(
+      text: widget.initialPrice?.toString() ?? '',
+    );
     _notesController = TextEditingController(text: widget.initialNotes ?? '');
   }
 
@@ -424,10 +492,10 @@ class __TemplateItemDialogState extends State<_TemplateItemDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF2D2D2D),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       title: Text(
         widget.initialName != null ? 'Edit Template Item' : 'Add Template Item',
-        style: const TextStyle(color: Colors.white),
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
       ),
       content: Form(
         key: _formKey,
@@ -436,17 +504,25 @@ class __TemplateItemDialogState extends State<_TemplateItemDialog> {
           children: [
             TextFormField(
               controller: _nameController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Item Name',
-                labelStyle: TextStyle(color: Colors.white70),
+                labelStyle: TextStyle(
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
                 enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.white30),
+                  borderSide: BorderSide(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.3),
+                  ),
                 ),
                 focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.green),
+                  borderSide: BorderSide(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
               ),
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter item name';
@@ -457,18 +533,26 @@ class __TemplateItemDialogState extends State<_TemplateItemDialog> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _quantityController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Quantity',
-                labelStyle: TextStyle(color: Colors.white70),
+                labelStyle: TextStyle(
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
                 enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.white30),
+                  borderSide: BorderSide(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.3),
+                  ),
                 ),
                 focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.green),
+                  borderSide: BorderSide(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
               ),
               keyboardType: TextInputType.number,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter quantity';
@@ -482,23 +566,32 @@ class __TemplateItemDialogState extends State<_TemplateItemDialog> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _priceController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Price',
-                labelStyle: TextStyle(color: Colors.white70),
+                labelStyle: TextStyle(
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
                 enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.white30),
+                  borderSide: BorderSide(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.3),
+                  ),
                 ),
                 focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.green),
+                  borderSide: BorderSide(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
               ),
               keyboardType: TextInputType.number,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter price';
                 }
-                if (double.tryParse(value) == null || double.parse(value) <= 0) {
+                if (double.tryParse(value) == null ||
+                    double.parse(value) <= 0) {
                   return 'Please enter valid price';
                 }
                 return null;
@@ -507,17 +600,25 @@ class __TemplateItemDialogState extends State<_TemplateItemDialog> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _notesController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Notes (Optional)',
-                labelStyle: TextStyle(color: Colors.white70),
+                labelStyle: TextStyle(
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
                 enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.white30),
+                  borderSide: BorderSide(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.3),
+                  ),
                 ),
                 focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.green),
+                  borderSide: BorderSide(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
               ),
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
             ),
           ],
         ),
@@ -534,7 +635,9 @@ class __TemplateItemDialogState extends State<_TemplateItemDialog> {
                 'name': _nameController.text.trim(),
                 'quantity': int.parse(_quantityController.text),
                 'price': double.parse(_priceController.text),
-                'notes': _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+                'notes': _notesController.text.trim().isEmpty
+                    ? null
+                    : _notesController.text.trim(),
               });
             }
           },

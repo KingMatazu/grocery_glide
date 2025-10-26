@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -13,8 +12,8 @@ class MonthPickerWidget extends StatelessWidget {
     final months = _generateMonths(currentDate);
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF2D2D2D),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       child: Column(
@@ -26,18 +25,18 @@ class MonthPickerWidget extends StatelessWidget {
             height: 4,
             margin: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white.withAlpha(100),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
           
           // Title
-          const Padding(
+          Padding(
             padding: EdgeInsets.all(16),
             child: Text(
               'Select Month',
               style: TextStyle(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
@@ -56,19 +55,19 @@ class MonthPickerWidget extends StatelessWidget {
                 return ListTile(
                   leading: Icon(
                     isCurrentMonth ? Icons.today : Icons.calendar_month,
-                    color: isCurrentMonth ? Colors.green : Colors.white70,
+                    color: isCurrentMonth ? Theme.of(context).colorScheme.primary : Theme.of(context).textTheme.bodyMedium?.color,
                   ),
                   title: Text(
                     month['display']!,
                     style: TextStyle(
-                      color: isCurrentMonth ? Colors.green : Colors.white,
+                      color: isCurrentMonth ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface,
                       fontWeight: isCurrentMonth ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
                   subtitle: isCurrentMonth 
-                      ? const Text(
+                      ? Text(
                           'Current Month',
-                          style: TextStyle(color: Colors.green, fontSize: 12),
+                          style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 12),
                         )
                       : null,
                   onTap: () => onMonthSelected(month['key']!),
