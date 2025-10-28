@@ -5,6 +5,7 @@ import 'package:grocery_glide/services/grocery_service.dart';
 import 'package:grocery_glide/themes/theme_provider.dart';
 import 'package:grocery_glide/views/master_template_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProfileAndSettingsScreen extends ConsumerWidget {
   const ProfileAndSettingsScreen({super.key});
@@ -121,6 +122,12 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
               context,
               title: 'App Settings',
               items: [
+                _SettingsItem(
+                  icon: Icons.system_update,
+                  title: 'Check for Updates',
+                  subtitle: 'Get the Latest version',
+                  onTap: () => _checkForUpdates(context),
+                ),
                 _SettingsItem(
                   icon: Icons.notifications,
                   title: 'Notifications',
@@ -684,6 +691,40 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
         const Text('• Search and filter capabilities'),
       ],
     );
+  }
+
+  Future<void> _checkForUpdates(BuildContext context) async {
+    // UPDATE THIS URL TO YOUR ACTUAL UPDATE PAGE
+    const updateUrl = 'https://github.com/KingMatazu/grocery_glide/releases';
+    
+    final uri = Uri.parse(updateUrl);
+
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not open updates page'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening updates page: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 

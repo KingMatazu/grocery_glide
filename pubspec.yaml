@@ -1,7 +1,12 @@
 name: grocery_glide
-description: "A new Flutter project."
+description: "A simple and efficient grocery list manager.
+ Features:
+ Master template management,
+ Monthly grocery lists,
+ Shopping progress tracking,
+ Search and filter capabilities."
 publish_to: 'none'
-version: 0.1.0
+version: 1.0.0+1
 
 environment:
   sdk: ^3.9.0
@@ -16,6 +21,7 @@ dependencies:
   path_provider: ^2.1.5
   flutter_riverpod: ^2.6.1
   shared_preferences: ^2.5.3
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

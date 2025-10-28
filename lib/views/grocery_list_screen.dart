@@ -92,7 +92,10 @@ class _GroceryListScreenState extends ConsumerState<GroceryListScreen> {
           children: [
             // Header with stats
             statsAsync.when(
-              data: (stats) => GroceryHeader(stats: stats, onMonthTap: () => _showMonthPicker(context, ref),),
+              data: (stats) => GroceryHeader(
+                stats: stats,
+                onMonthTap: () => _showMonthPicker(context, ref),
+              ),
               loading: () => const GroceryHeader(stats: null),
               error: (_, _) => const GroceryHeader(stats: null),
             ),
@@ -131,17 +134,27 @@ class _GroceryListScreenState extends ConsumerState<GroceryListScreen> {
                           },
                         ),
                   loading: () => Center(
-                    child: CircularProgressIndicator(color: Theme.of(context).colorScheme.onSurface),
+                    child: CircularProgressIndicator(
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                   ),
                   error: (error, _) => Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.error, color: Theme.of(context).colorScheme.error, size: 48),
+                        Icon(
+                          Icons.error,
+                          color: Theme.of(context).colorScheme.error,
+                          size: 48,
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           'Error: $error',
-                          style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.color,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
@@ -192,23 +205,37 @@ class GroceryHeader extends ConsumerWidget {
               GestureDetector(
                 onTap: () => _showMonthPicker(context, ref),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(25),
-                    border: Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2))
+                    border: Border.all(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.2),
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        DateFormat('MMM yyyy').format(DateTime.parse('${ref.watch(selectedMonthProvider)}-01')),
+                        DateFormat('MMM yyyy').format(
+                          DateTime.parse(
+                            '${ref.watch(selectedMonthProvider)}-01',
+                          ),
+                        ),
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 16,
                         ),
                       ),
-                      Icon(Icons.keyboard_arrow_down, color: Theme.of(context).colorScheme.onSurface,),
+                      Icon(
+                        Icons.keyboard_arrow_down,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                     ],
                   ),
                 ),
@@ -221,9 +248,17 @@ class GroceryHeader extends ConsumerWidget {
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2)),
+                    border: Border.all(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.2),
+                    ),
                   ),
-                  child: Icon(Icons.person, color: Theme.of(context).colorScheme.onSurface, size: 24),
+                  child: Icon(
+                    Icons.person,
+                    color: Theme.of(context).colorScheme.onSurface,
+                    size: 24,
+                  ),
                 ),
               ),
             ],
@@ -250,7 +285,9 @@ class GroceryHeader extends ConsumerWidget {
                     Text(
                       'Bought: ${stats!.boughtItems}',
                       style: TextStyle(
-                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.7),
                         fontSize: 14,
                         fontWeight: FontWeight.w400,
                       ),
@@ -286,8 +323,12 @@ class GroceryHeader extends ConsumerWidget {
             // Progress bar
             LinearProgressIndicator(
               value: stats!.completionPercentage / 100,
-              backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary.withValues(alpha: 0.7)),
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.3),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
+              ),
               minHeight: 4,
             ),
           ] else
@@ -301,7 +342,7 @@ class GroceryHeader extends ConsumerWidget {
   }
 }
 
-void _navigateToProfile(BuildContext context){
+void _navigateToProfile(BuildContext context) {
   Navigator.push(
     context,
     MaterialPageRoute(builder: (context) => const ProfileAndSettingsScreen()),
@@ -312,7 +353,7 @@ void _showMonthPicker(BuildContext context, WidgetRef ref) {
   showModalBottomSheet(
     context: context,
     builder: (context) => MonthPickerWidget(
-      onMonthSelected: (monthKey) async{
+      onMonthSelected: (monthKey) async {
         if (kDebugMode) {
           print('Month selected: $monthKey');
         } // debug log
@@ -353,14 +394,22 @@ class SearchAndFilterBar extends ConsumerWidget {
               style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
               decoration: InputDecoration(
                 hintText: 'Search items...',
-                hintStyle: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
-                prefixIcon: Icon(Icons.search, color: Theme.of(context).textTheme.bodyMedium?.color),
+                hintStyle: TextStyle(
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
                 filled: false,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
             ),
           ),
@@ -369,27 +418,49 @@ class SearchAndFilterBar extends ConsumerWidget {
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2))
+              border: Border.all(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.2),
+              ),
             ),
             child: DropdownButton<FilterType>(
               value: currentFilter,
               onChanged: (value) => onFilterChanged(value!),
               dropdownColor: Theme.of(context).scaffoldBackgroundColor,
               underline: const SizedBox(),
-              padding: EdgeInsets.symmetric(horizontal: 10,),
-              icon: Icon(Icons.filter_list, color: Theme.of(context).colorScheme.onSurface),
+              padding: EdgeInsets.symmetric(horizontal: 10),
+              icon: Icon(
+                Icons.filter_list,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
               items: [
                 DropdownMenuItem(
                   value: FilterType.all,
-                  child: Text('All', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+                  child: Text(
+                    'All',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
                 ),
                 DropdownMenuItem(
                   value: FilterType.unbought,
-                  child: Text('Todo', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+                  child: Text(
+                    'Todo',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
                 ),
                 DropdownMenuItem(
                   value: FilterType.bought,
-                  child: Text('Done', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+                  child: Text(
+                    'Done',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -407,7 +478,9 @@ class EmptyStateWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedMonth = ref.watch(selectedMonthProvider);
-    final monthName = DateFormat('MMMM yyyy').format(DateTime.parse('$selectedMonth-01'));
+    final monthName = DateFormat(
+      'MMMM yyyy',
+    ).format(DateTime.parse('$selectedMonth-01'));
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -415,13 +488,17 @@ class EmptyStateWidget extends ConsumerWidget {
           Icon(
             Icons.shopping_cart_outlined,
             size: 64,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.2),
           ),
           const SizedBox(height: 16),
           Text(
             'No items found for $monthName',
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.5),
               fontSize: 18,
               fontWeight: FontWeight.w500,
             ),
@@ -430,7 +507,7 @@ class EmptyStateWidget extends ConsumerWidget {
           Text(
             'Switch to current month or create from template',
             style: TextStyle(
-              color: Theme.of(context).textTheme.bodyMedium?.color ,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
               fontSize: 14,
             ),
           ),
@@ -494,12 +571,16 @@ class GroceryListItem extends ConsumerWidget {
           decoration: BoxDecoration(
             color: item.isBought
                 ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)
-                : Theme.of(context).cardTheme.color,
+                : Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: item.isBought
-                  ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)
-                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+                  ? Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.5)
+                  : Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.2),
               width: 1,
             ),
           ),
@@ -511,17 +592,25 @@ class GroceryListItem extends ConsumerWidget {
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(
-                    color: item.isBought ? Theme.of(context).colorScheme.primary : Colors.transparent,
+                    color: item.isBought
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.transparent,
                     border: Border.all(
                       color: item.isBought
                           ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+                          : Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.2),
                       width: 2,
                     ),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: item.isBought
-                      ? Icon(Icons.check, size: 16, color: Theme.of(context).colorScheme.onSurface)
+                      ? Icon(
+                          Icons.check,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        )
                       : null,
                 ),
               ),
@@ -534,7 +623,9 @@ class GroceryListItem extends ConsumerWidget {
                       item.itemName,
                       style: TextStyle(
                         color: item.isBought
-                            ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)
+                            ? Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.3)
                             : Theme.of(context).colorScheme.onSurface,
                         fontSize: 18,
                         fontWeight: FontWeight.w500,
@@ -549,7 +640,9 @@ class GroceryListItem extends ConsumerWidget {
                       style: TextStyle(
                         color: item.isBought
                             ? Theme.of(context).textTheme.bodyMedium?.color
-                            : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                            : Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.5),
                         fontSize: 14,
                         decoration: item.isBought
                             ? TextDecoration.lineThrough
@@ -566,7 +659,9 @@ class GroceryListItem extends ConsumerWidget {
                     'Qty: ${item.quantity}',
                     style: TextStyle(
                       color: item.isBought
-                          ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)
+                          ? Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.5)
                           : Theme.of(context).colorScheme.onSurface,
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
@@ -580,7 +675,9 @@ class GroceryListItem extends ConsumerWidget {
                     'Amount: ${item.totalPrice.formatCurrency(currencyFormatter)}',
                     style: TextStyle(
                       color: item.isBought
-                          ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.7)
+                          ? Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.7)
                           : Theme.of(context).colorScheme.onSurface,
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
@@ -608,7 +705,8 @@ class AddEditGroceryDialog extends ConsumerStatefulWidget {
   bool get isEditing => item != null;
 
   @override
-  ConsumerState<AddEditGroceryDialog> createState() => _AddEditGroceryDialogState();
+  ConsumerState<AddEditGroceryDialog> createState() =>
+      _AddEditGroceryDialogState();
 }
 
 class _AddEditGroceryDialogState extends ConsumerState<AddEditGroceryDialog> {
@@ -779,13 +877,17 @@ class _AddEditGroceryDialogState extends ConsumerState<AddEditGroceryDialog> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                           side: BorderSide(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.3),
                           ),
                         ),
                       ),
                       child: Text(
                         'Cancel',
-                        style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                        ),
                       ),
                     ),
                   ),
@@ -833,14 +935,20 @@ class _AddEditGroceryDialogState extends ConsumerState<AddEditGroceryDialog> {
       style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
+        labelStyle: TextStyle(
+          color: Theme.of(context).textTheme.bodyMedium?.color,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)),
+          borderSide: BorderSide(
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.3),
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide:  BorderSide(color: Theme.of(context).colorScheme.primary),
+          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -851,7 +959,9 @@ class _AddEditGroceryDialogState extends ConsumerState<AddEditGroceryDialog> {
           borderSide: BorderSide(color: Theme.of(context).colorScheme.error),
         ),
         filled: true,
-        fillColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+        fillColor: Theme.of(
+          context,
+        ).colorScheme.onSurface.withValues(alpha: 0.05),
       ),
     );
   }

@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:label="GroceryGlide"
         android:name="${applicationName}"
@@ -42,4 +43,10 @@
             <data android:mimeType="text/plain"/>
         </intent>
     </queries>
+    <queries>
+  <intent>
+    <action android:name="android.intent.action.VIEW" />
+    <data android:scheme="https" />
+  </intent>
+</queries>
 </manifest>

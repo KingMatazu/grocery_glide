@@ -157,7 +157,7 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
         floatingActionButton: FloatingActionButton(
           onPressed: _addNewItem,
           backgroundColor: Theme.of(context).colorScheme.primary,
-          child: const Icon(Icons.add),
+          child: const Icon(Icons.add, size: 30),
         ),
       ),
     );
