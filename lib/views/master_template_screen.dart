@@ -110,7 +110,12 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
               child: stagingItems.isEmpty
                   ? _buildEmptyState()
                   : ListView.builder(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        top: 0,
+                        bottom: 75,
+                      ),
                       itemCount: stagingItems.length,
                       itemBuilder: (context, index) => Card(
                         color: Theme.of(context).colorScheme.surface,

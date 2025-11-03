@@ -120,7 +120,12 @@ class _GroceryListScreenState extends ConsumerState<GroceryListScreen> {
                   data: (items) => items.isEmpty
                       ? const EmptyStateWidget()
                       : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.only(
+                            left: 16,
+                            right: 16,
+                            top: 0,
+                            bottom: 65,
+                          ),
                           itemCount: items.length,
                           itemBuilder: (context, index) {
                             final item = items[index];
@@ -206,7 +211,7 @@ class GroceryHeader extends ConsumerWidget {
                 onTap: () => _showMonthPicker(context, ref),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
+                    horizontal: 15,
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
@@ -263,7 +268,7 @@ class GroceryHeader extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
 
           // Stats row with progress indicator
           if (stats != null) ...[
@@ -319,7 +324,7 @@ class GroceryHeader extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             // Progress bar
             LinearProgressIndicator(
               value: stats!.completionPercentage / 100,

@@ -7,13 +7,14 @@ import 'package:grocery_glide/themes/app_theme.dart';
 import 'package:grocery_glide/themes/theme_provider.dart';
 import 'package:grocery_glide/views/first_time_setup_screen.dart';
 import 'package:grocery_glide/views/grocery_list_screen.dart';
+import 'package:grocery_glide/views/onboarding_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-void main() async{
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await GroceryDatabase.initialize();
-  runApp(const ProviderScope(child:  MainApp()));
+  runApp(const ProviderScope(child: MainApp()));
 }
 
 class MainApp extends ConsumerWidget {
@@ -22,7 +23,6 @@ class MainApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
-
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -38,29 +38,57 @@ class MainApp extends ConsumerWidget {
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
-  Future<bool> _checkFirstTimeUser() async{
+  Future<Map<String, bool>> _checkAppState() async {
     await Future.delayed(const Duration(milliseconds: 500));
-    final pref = await SharedPreferences.getInstance();
-    return !(pref.getBool('first_time_setup_complete') ?? false);
+    final prefs = await SharedPreferences.getInstance();
+
+    final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+    final firstTimeSetupComplete =
+        prefs.getBool('first_time_setup_complete') ?? false;
+
+    return {
+      'onboarding_complete': onboardingComplete,
+      'first_time_setup_complete': firstTimeSetupComplete,
+    };
   }
+  // Future<bool> _checkFirstTimeUser() async{
+  //   await Future.delayed(const Duration(milliseconds: 500));
+  //   final pref = await SharedPreferences.getInstance();
+  //   return !(pref.getBool('first_time_setup_complete') ?? false);
+  // }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: _checkFirstTimeUser(),
+    return FutureBuilder<Map<String, bool>>(
+      future: _checkAppState(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             body: Center(
-              child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary,),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.shopping_cart,
+                    size: 80,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  CircularProgressIndicator(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ],
+              ),
             ),
           );
         }
-        final isFirstTime = snapshot.data ?? false;
+        final appState = snapshot.data ?? {};
+        final onboardingComplete = appState['onboarding_complete'] ?? false;
+        final firstTimeSetupComplete = appState['first_time_setup_complete'] ?? false;
+
         // Ensure monthly items exist for returning users
-        if (!isFirstTime) {
-          WidgetsBinding.instance.addPostFrameCallback((_) async{
+        if (onboardingComplete && firstTimeSetupComplete) {
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
             final currentMonth = DateFormat('yyyy-MM').format(DateTime.now());
             if (kDebugMode) {
               print('App startup: ensuring items for $currentMonth');
@@ -68,9 +96,17 @@ class SplashScreen extends StatelessWidget {
             await GroceryService.ensureMonthlyItemsExist(currentMonth);
           });
         }
-        return isFirstTime
-        ? const FirstTimeSetupScreen()
-        : const GroceryListScreen();
+        
+        // 1. First time ever -> Onboarding
+        // 2. After onboarding -> First time setup (master template)
+        // 3. After setup -> Main app
+        if (!onboardingComplete) {
+          return const OnboardingScreen();
+        } else if (!firstTimeSetupComplete){
+          return const FirstTimeSetupScreen();
+        } else {
+          return const GroceryListScreen();
+        }
       },
     );
   }
