@@ -288,7 +288,7 @@ class GroceryService {
           .findAll();
 
       if (kDebugMode) {
-        print('Found ${masterItems.length} master temolate');
+        print('Found ${masterItems.length} master temolate items');
       }
 
       if (masterItems.isNotEmpty) {
@@ -304,7 +304,99 @@ class GroceryService {
     } else {
       if (kDebugMode) {
         print('Monthly items already exisit for $monthKey');
+        await addMissingTemplateItems(monthKey);
       }
     }
+  }
+
+  static Future<void> syncMonthlyItemsWithTemplate(String monthKey) async{
+    final masterItems = await _isar.groceryItems
+    .filter()
+    .isMasterTemplateEqualTo(true)
+    .findAll();
+
+    final existingMonthlyItems = await _isar.groceryItems
+    .filter()
+    .monthKeyEqualTo(monthKey)
+    .and()
+    .isMasterTemplateEqualTo(false)
+    .findAll();
+
+    await _isar.writeTxn(() async{
+      // create a map of existing items for quick lookup
+      final existingItemsMap = <String, GroceryItem>{};
+      for (final item in existingMonthlyItems) {
+        existingItemsMap[item.itemName.toLowerCase()] = item;
+      }
+
+      // process each master template item
+      for (final masterItem in masterItems) {
+        final existingItem = existingItemsMap[masterItem.itemName.toLowerCase()];
+
+        if (existingItem != null) {
+          // item exists - update quantity/price but preserve bought status
+          existingItem.quantity = masterItem.quantity;
+          existingItem.price = masterItem.price;
+          existingItem.notes = masterItem.notes;
+          existingItem.touch();
+          await _isar.groceryItems.put(existingItem);
+        } else {
+          // Item doesnt exisit - create new one
+          final newItem = GroceryItem(
+            itemName: masterItem.itemName,
+            quantity: masterItem.quantity,
+            price: masterItem.price,
+            notes: masterItem.notes,
+          );
+          newItem.monthKey = monthKey;
+          newItem.isMasterTemplate = false;
+          newItem.isBought = false;
+          await _isar.groceryItems.put(newItem);
+        }
+      }
+    });
+  }
+
+  // add missing template items to a month without affecting existing items
+  static Future<int> addMissingTemplateItems(String monthKey) async{
+    final masterItems = await _isar.groceryItems
+    .filter()
+    .isMasterTemplateEqualTo(true)
+    .findAll();
+
+    final existingMonthlyItems = await _isar.groceryItems
+    .filter()
+    .monthKeyEqualTo(monthKey)
+    .and()
+    .isMasterTemplateEqualTo(false)
+    .findAll();
+
+     // Create a set of existing item names (lowercase) for quick lookup
+  final existingNames = existingMonthlyItems
+      .map((item) => item.itemName.toLowerCase())
+      .toSet();
+
+  int addedCount = 0;
+
+  await _isar.writeTxn(() async {
+    for (final masterItem in masterItems) {
+      // Only add if item doesn't exist
+      if (!existingNames.contains(masterItem.itemName.toLowerCase())) {
+        final newItem = GroceryItem(
+          itemName: masterItem.itemName,
+          quantity: masterItem.quantity,
+          price: masterItem.price,
+          notes: masterItem.notes,
+        );
+        newItem.monthKey = monthKey;
+        newItem.isMasterTemplate = false;
+        newItem.isBought = false;
+        await _isar.groceryItems.put(newItem);
+        addedCount++;
+      }
+    }
+  });
+
+  return addedCount;
   }
 }

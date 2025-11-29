@@ -51,6 +51,22 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
         appBar: AppBar(
           title: const Text('Master Template'),
           backgroundColor: Colors.transparent,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_rounded),
+            onPressed: () async {
+              if (hasUnsavedChanges) {
+                // Show dialog via PopScope
+                Navigator.pop(context);
+              } else {
+                // No unsaved changes?, go directly to grocery list
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const GroceryListScreen()),
+                  (route) => false,
+                );
+              }
+            },
+          ),
           actions: [
             if (hasUnsavedChanges)
               Container(
@@ -212,11 +228,7 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
       GroceryItem.template(itemName: 'Bread', quantity: 1, price: 2.50),
       GroceryItem.template(itemName: 'Eggs', quantity: 12, price: 4.00),
       GroceryItem.template(itemName: 'Bananas', quantity: 6, price: 2.00),
-      GroceryItem.template(
-        itemName: 'Chicken Breast',
-        quantity: 1,
-        price: 8.00,
-      ),
+      GroceryItem.template(itemName: 'Chicken Breast', quantity: 1, price: 8.00),
       GroceryItem.template(itemName: 'Rice', quantity: 1, price: 3.00),
       GroceryItem.template(itemName: 'Apples', quantity: 4, price: 3.50),
       GroceryItem.template(itemName: 'Yogurt', quantity: 4, price: 5.00),
@@ -224,26 +236,48 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
       GroceryItem.template(itemName: 'Tomatoes', quantity: 3, price: 2.50),
     ];
 
+    int addedCount = 0;
+    int skippedCount = 0;
+
     setState(() {
       // Add default items to staging, avoiding duplicates
       for (final defaultItem in defaultItems) {
+        // Checks for duplicate (case insensitive)
         final exists = stagingItems.any(
           (item) =>
               item.itemName.toLowerCase() == defaultItem.itemName.toLowerCase(),
         );
         if (!exists) {
           stagingItems.add(defaultItem);
+          addedCount++;
+        } else {
+          skippedCount++;
         }
       }
-      hasUnsavedChanges = true;
+      if (addedCount > 0) {
+        hasUnsavedChanges = true;
+      }
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Added ${defaultItems.length} default items to template'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-      ),
-    );
+    if (addedCount > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            skippedCount > 0 
+            ? 'Added $addedCount items. Skipped $skippedCount duplicates.'
+            : 'Added $addedCount default items to template.'
+          ),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('All default items already exist in your template'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
   }
 
   void _createFromCurrentMonth() async {
@@ -260,29 +294,89 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
       return;
     }
 
-    setState(() {
-      stagingItems.clear();
-      for (final item in currentItems) {
-        stagingItems.add(
-          GroceryItem.template(
-            itemName: item.itemName,
-            quantity: item.quantity,
-            price: item.price,
-            notes: item.notes,
-          ),
-        );
-      }
-      hasUnsavedChanges = true;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Imported ${currentItems.length} items from current month',
+    // show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        title: Text(
+          'Create Template from Current Month',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
         ),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        content: Text(
+          'This will update your maaster template with ${currentItems.length} items from the cureent month. Your current month\'s shopping progress will be preserved.',
+          style: TextStyle(
+            color: Theme.of(context).textTheme.bodyMedium?.color,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.primary,
+            ),
+            child: const Text('Create Template'),
+          ),
+        ],
       ),
     );
+
+    if (confirmed != true) return;
+
+    int addedCount = 0;
+    int skippedCount = 0;
+
+    setState(() {
+      // Add items from the current month, check for duplicates
+      for (final item in currentItems) {
+        // check if item already exists in staging (case insensitive)
+        final exists = stagingItems.any(
+          (existingItem) =>
+              existingItem.itemName.toLowerCase() ==
+              item.itemName.toLowerCase(),
+        );
+
+        if (!exists) {
+          // create template items without the bought status
+          stagingItems.add(
+            GroceryItem.template(
+              itemName: item.itemName,
+              quantity: item.quantity,
+              price: item.price,
+              notes: item.notes,
+            ),
+          );
+          addedCount++;
+        } else {
+          skippedCount++;
+        }
+      }
+
+      if (addedCount > 0) {
+        hasUnsavedChanges = true;
+      }
+    });
+
+    if (addedCount > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            skippedCount > 0
+                ? 'Added $addedCount items. Skipped $skippedCount duplicates. Click Done to save!'
+                : 'Added $addedCount items to template. Click Done to save!',
+          ),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('All items from current month alreay exist in template'),
+          backgroundColor: Colors.orange,
+        )
+      );
+    }
   }
 
   void _clearAllItems() async {
@@ -342,6 +436,8 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
         initialQuantity: item.quantity,
         initialPrice: item.price,
         initialNotes: item.notes,
+        existingItems: stagingItems,
+        currentItemIndex: index,
       ),
     );
 
@@ -361,7 +457,7 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
   void _addNewItem() async {
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => const _TemplateItemDialog(),
+      builder: (context) => _TemplateItemDialog(existingItems: stagingItems),
     );
 
     if (result != null) {
@@ -414,36 +510,47 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
   }
 
   Future<bool> _showUnsavedChangesDialog() async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            title: Text(
-              'Unsaved Changes',
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-            ),
-            content: Text(
-              'You have unsaved changes. Do you want to discard them?',
-              style: TextStyle(
-                color: Theme.of(context).textTheme.bodyMedium?.color,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.error,
-                ),
-                child: const Text('Discard'),
-              ),
-            ],
+    final shouldDiscard = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        title: Text(
+          'Unsaved Changes',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+        ),
+        content: Text(
+          'You have unsaved changes. Do you want to discard them?',
+          style: TextStyle(
+            color: Theme.of(context).textTheme.bodyMedium?.color,
           ),
-        ) ??
-        false;
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDiscard == true && mounted) {
+      // Navigate to grocery List Screen instead
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const GroceryListScreen()),
+        (route) => false,
+      );
+      return false;
+    }
+
+    return shouldDiscard ?? false;
   }
 }
 
@@ -453,12 +560,16 @@ class _TemplateItemDialog extends StatefulWidget {
   final int? initialQuantity;
   final double? initialPrice;
   final String? initialNotes;
+  final List<GroceryItem> existingItems;
+  final int? currentItemIndex;
 
   const _TemplateItemDialog({
     this.initialName,
     this.initialQuantity,
     this.initialPrice,
     this.initialNotes,
+    this.existingItems = const [],
+    this.currentItemIndex,
   });
 
   @override
@@ -494,6 +605,33 @@ class __TemplateItemDialogState extends State<_TemplateItemDialog> {
     super.dispose();
   }
 
+  String _capitalizeWords(String text) {
+    if (text.isEmpty) return text;
+
+    return text
+        .split(' ')
+        .map((word) {
+          if (word.isEmpty) return word;
+          return word[0].toUpperCase() + word.substring(1).toLowerCase();
+        })
+        .join(' ');
+  }
+
+  bool _isDuplicate(String itemName) {
+    final normalizedName = itemName.trim().toLowerCase();
+
+    for (int i = 0; i < widget.existingItems.length; i++) {
+      // Skip the current item when editing
+      if (widget.currentItemIndex != null && i == widget.currentItemIndex) {
+        continue;
+      }
+      if (widget.existingItems[i].itemName.toLowerCase() == normalizedName) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -509,6 +647,7 @@ class __TemplateItemDialogState extends State<_TemplateItemDialog> {
           children: [
             TextFormField(
               controller: _nameController,
+              textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
                 labelText: 'Item Name',
                 labelStyle: TextStyle(
@@ -636,8 +775,24 @@ class __TemplateItemDialogState extends State<_TemplateItemDialog> {
         TextButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) {
+              final capitalizedName = _capitalizeWords(
+                _nameController.text.trim(),
+              );
+
+              // Check for duplicate
+              if (_isDuplicate(capitalizedName)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Item "$capitalizedName" already exists!'),
+                    backgroundColor: Colors.orange,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
               Navigator.pop(context, {
-                'name': _nameController.text.trim(),
+                'name': capitalizedName,
+                // 'name': _nameController.text.trim(),
                 'quantity': int.parse(_quantityController.text),
                 'price': double.parse(_priceController.text),
                 'notes': _notesController.text.trim().isEmpty

@@ -6,7 +6,7 @@ description: "A simple and efficient grocery list manager.
  Shopping progress tracking,
  Search and filter capabilities."
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+1
 
 environment:
   sdk: ^3.9.0

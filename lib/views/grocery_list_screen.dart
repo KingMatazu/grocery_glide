@@ -26,6 +26,15 @@ class _GroceryListScreenState extends ConsumerState<GroceryListScreen> {
     super.dispose();
   }
 
+  Future<bool> _isDuplicateItem(String itemName, {int? excludeId}) async {
+  final allItems = await GroceryService.getAllItems();
+  
+  return allItems.any((item) => 
+    item.itemName.toLowerCase() == itemName.toLowerCase() && 
+    item.id != excludeId // Exclude current item when editing
+  );
+}
+
   Future<void> _deleteItem(GroceryItem item) async {
     try {
       await GroceryService.deleteItem(item.id);
@@ -44,9 +53,15 @@ class _GroceryListScreenState extends ConsumerState<GroceryListScreen> {
   }
 
   Future<void> _editItem(GroceryItem item) async {
+    final selectedMonth = ref.read(selectedMonthProvider);
+    
     final result = await showDialog<GroceryItem>(
       context: context,
-      builder: (context) => AddEditGroceryDialog(item: item),
+      builder: (context) => AddEditGroceryDialog(
+        item: item,
+        monthKey: selectedMonth,
+        existingItems: ref.read(filteredGroceryItemsProvider).value ?? [],
+      ),
     );
 
     if (result != null) {
@@ -55,9 +70,14 @@ class _GroceryListScreenState extends ConsumerState<GroceryListScreen> {
   }
 
   Future<void> _addItem() async {
+    final selectedMonth = ref.read(selectedMonthProvider);
+
     final result = await showDialog<GroceryItem>(
       context: context,
-      builder: (context) => const AddEditGroceryDialog(),
+      builder: (context) => AddEditGroceryDialog(
+        monthKey: selectedMonth,
+        existingItems: ref.read(filteredGroceryItemsProvider).value ?? [],
+      ),
     );
 
     if (result != null) {
@@ -704,8 +724,15 @@ class GroceryListItem extends ConsumerWidget {
 // Add/Edit Item Dialog Component
 class AddEditGroceryDialog extends ConsumerStatefulWidget {
   final GroceryItem? item;
+  final String? monthKey;
+  final List<GroceryItem> existingItems;
 
-  const AddEditGroceryDialog({super.key, this.item});
+  const AddEditGroceryDialog({
+    super.key,
+    this.item,
+    this.monthKey,
+    this.existingItems = const [],
+  });
 
   bool get isEditing => item != null;
 
@@ -740,11 +767,49 @@ class _AddEditGroceryDialogState extends ConsumerState<AddEditGroceryDialog> {
     _notesController.dispose();
     super.dispose();
   }
+  
+  // function to capitalize first letter of each word
+  String _capitalizeWords(String text) {
+    if (text.isEmpty) return text;
+    
+    return text.split(' ').map((word) {
+      if (word.isEmpty) return word;
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
+  }
+
+   // function to check for duplicate items
+  bool _isDuplicate(String itemName) {
+    final normalizedName = itemName.trim().toLowerCase();
+    
+    return widget.existingItems.any((item) {
+      // Skip the current item when editing
+      if (widget.isEditing && item.id == widget.item!.id) {
+        return false;
+      }
+      return item.itemName.toLowerCase() == normalizedName;
+    });
+  }
 
   Future<void> _saveItem() async {
     if (!_formKey.currentState!.validate()) return;
 
     try {
+      // Capitalize the item name
+      final capitalizedName = _capitalizeWords(_nameController.text.trim());
+
+      // check for duplicates
+      if (_isDuplicate(capitalizedName)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Item "$capitalizedName" already exists!'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
       final item = widget.isEditing
           ? widget.item!
           : GroceryItem(
@@ -812,6 +877,7 @@ class _AddEditGroceryDialogState extends ConsumerState<AddEditGroceryDialog> {
               _buildTextField(
                 controller: _nameController,
                 label: 'Item Name',
+                textCapitalization: TextCapitalization.words,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Please enter item name';
@@ -931,12 +997,14 @@ class _AddEditGroceryDialogState extends ConsumerState<AddEditGroceryDialog> {
     TextInputType? keyboardType,
     String? Function(String?)? validator,
     int maxLines = 1,
+    TextCapitalization textCapitalization = TextCapitalization.none,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
       maxLines: maxLines,
+      textCapitalization: textCapitalization,
       style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
         labelText: label,
