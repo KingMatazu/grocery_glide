@@ -671,7 +671,7 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
     showAboutDialog(
       context: context,
       applicationName: 'Grocery Glide',
-      applicationVersion: '1.0.1',
+      applicationVersion: '1.0.2',
       applicationIcon: Container(
         width: 60,
         height: 60,

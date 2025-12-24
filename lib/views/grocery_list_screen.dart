@@ -7,6 +7,7 @@ import 'package:grocery_glide/providers/currency_provider.dart';
 import 'package:grocery_glide/providers/grocery_providers.dart';
 import 'package:grocery_glide/services/grocery_service.dart';
 import 'package:grocery_glide/views/profile_and_settings_screen.dart';
+import 'package:grocery_glide/widgets/fetched_items_dialog.dart';
 import 'package:grocery_glide/widgets/month_picker_widget.dart';
 import 'package:intl/intl.dart';
 
@@ -101,10 +102,20 @@ class _GroceryListScreenState extends ConsumerState<GroceryListScreen> {
     );
   }
 
+  void _showFetched(BuildContext context, String monthKey){
+    showDialog(
+      context: context,
+      builder: (context) => FetchedItemsDialog(
+        currentMonthKey : monthKey,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final filteredItemsAsync = ref.watch(filteredGroceryItemsProvider);
     final statsAsync = ref.watch(groceryStatsProvider);
+    final selectedMonth = ref.watch(selectedMonthProvider);
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -198,11 +209,35 @@ class _GroceryListScreenState extends ConsumerState<GroceryListScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addItem,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        child: const Icon(Icons.add, size: 30),
+      floatingActionButton: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          // Suggestions FAB
+          FloatingActionButton(
+            heroTag: 'idea_fab',
+            onPressed: () => _showFetched(context, selectedMonth),
+            backgroundColor: Colors.amber,
+            child: const Icon(
+              Icons.lightbulb,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 16,),
+          // Add item FAB
+          FloatingActionButton(
+            heroTag: 'add_fab',
+            onPressed: _addItem,
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            child: const Icon(Icons.add, size: 30,),
+          )
+        ],
       ),
+      // floatingActionButton: FloatingActionButton(
+      //   onPressed: _addItem,
+      //   backgroundColor: Theme.of(context).colorScheme.primary,
+      //   child: const Icon(Icons.add, size: 30),
+      // ),
     );
   }
 }
@@ -530,7 +565,7 @@ class EmptyStateWidget extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Switch to current month or create from template',
+            'Add Items to month or create from template',
             style: TextStyle(
               color: Theme.of(context).textTheme.bodyMedium?.color,
               fontSize: 14,

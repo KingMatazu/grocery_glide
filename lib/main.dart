@@ -10,9 +10,22 @@ import 'package:grocery_glide/views/grocery_list_screen.dart';
 import 'package:grocery_glide/views/onboarding_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:shorebird_code_push/shorebird_code_push.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // final shorebirdCodePush = ShorebirdUpdater();
+  // final isUpdateAvailable = await shorebirdCodePush.checkForUpdate();
+  
+  // if (isUpdateAvailable == UpdateStatus.outdated) {
+  //   try {
+  //     await shorebirdCodePush.update();
+  //   } on UpdateException catch (error) {
+  //     error.message;
+  //   }
+  // }
+
   await GroceryDatabase.initialize();
   runApp(const ProviderScope(child: MainApp()));
 }
