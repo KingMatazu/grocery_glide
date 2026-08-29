@@ -27,15 +27,6 @@ class _GroceryListScreenState extends ConsumerState<GroceryListScreen> {
     super.dispose();
   }
 
-  Future<bool> _isDuplicateItem(String itemName, {int? excludeId}) async {
-  final allItems = await GroceryService.getAllItems();
-  
-  return allItems.any((item) => 
-    item.itemName.toLowerCase() == itemName.toLowerCase() && 
-    item.id != excludeId // Exclude current item when editing
-  );
-}
-
   Future<void> _deleteItem(GroceryItem item) async {
     try {
       await GroceryService.deleteItem(item.id);
@@ -420,6 +411,7 @@ void _showMonthPicker(BuildContext context, WidgetRef ref) {
         // Ensure items exist for the selected month
         await GroceryService.ensureMonthlyItemsExist(monthKey);
         ref.read(selectedMonthProvider.notifier).state = monthKey;
+        if (!context.mounted) return;
         Navigator.pop(context);
       },
     ),

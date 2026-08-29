@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "847070903313",
+    "project_id": "groceryglide-89876",
+    "storage_bucket": "groceryglide-89876.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:847070903313:android:e411d41acad78f1da8c5b0",
+        "android_client_info": {
+          "package_name": "com.bvbyco.grocery_glide"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCDrMozOMtVbSO6HitvPXkMDv9EGOS68SI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

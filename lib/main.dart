@@ -10,21 +10,30 @@ import 'package:grocery_glide/views/grocery_list_screen.dart';
 import 'package:grocery_glide/views/onboarding_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// import 'package:shorebird_code_push/shorebird_code_push.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'package:shorebird_code_push/shorebird_code_push.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // final shorebirdCodePush = ShorebirdUpdater();
-  // final isUpdateAvailable = await shorebirdCodePush.checkForUpdate();
-  
-  // if (isUpdateAvailable == UpdateStatus.outdated) {
-  //   try {
-  //     await shorebirdCodePush.update();
-  //   } on UpdateException catch (error) {
-  //     error.message;
-  //   }
-  // }
+  // Initialize firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // Check for Shorebird over-the-air updates before launching.
+  final updater = ShorebirdUpdater();
+  if (updater.isAvailable) {
+    final status = await updater.checkForUpdate();
+    if (status == UpdateStatus.outdated) {
+      try {
+        await updater.update();
+      } on UpdateException catch (error) {
+        debugPrint('Shorebird update failed: ${error.message}');
+      }
+    }
+  }
 
   await GroceryDatabase.initialize();
   runApp(const ProviderScope(child: MainApp()));
@@ -64,12 +73,6 @@ class SplashScreen extends StatelessWidget {
       'first_time_setup_complete': firstTimeSetupComplete,
     };
   }
-  // Future<bool> _checkFirstTimeUser() async{
-  //   await Future.delayed(const Duration(milliseconds: 500));
-  //   final pref = await SharedPreferences.getInstance();
-  //   return !(pref.getBool('first_time_setup_complete') ?? false);
-  // }
-
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Map<String, bool>>(

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:grocery_glide/providers/auth_provider.dart';
 import 'package:grocery_glide/providers/currency_provider.dart';
+import 'package:grocery_glide/providers/grocery_providers.dart';
 import 'package:grocery_glide/services/grocery_service.dart';
 import 'package:grocery_glide/themes/theme_provider.dart';
+import 'package:grocery_glide/views/login_screen.dart';
 import 'package:grocery_glide/views/master_template_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -26,8 +29,11 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _buildProfileSection(context),
+            _buildProfileSection(context, ref),
             const SizedBox(height: 32),
+            
+            _buildAuthSection(context, ref),
+            const SizedBox(height: 24),
             
             _buildSettingsSection(
               context,
@@ -83,7 +89,7 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
                   icon: Icons.refresh,
                   title: 'Reset Current Month',
                   subtitle: 'Mark all items as unbought',
-                  onTap: () => _resetCurrentMonth(context),
+                  onTap: () => _resetCurrentMonth(context, ref),
                 ),
               ],
             ),
@@ -401,7 +407,9 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileSection(BuildContext context) {
+  Widget _buildProfileSection(BuildContext context, WidgetRef ref) {
+    final currentUser = ref.watch(currentUserProvider);
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -432,7 +440,7 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Grocery Shopper',
+            currentUser?.displayName ?? currentUser?.email ?? 'User',
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurface,
               fontSize: 20,
@@ -451,6 +459,171 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
       ),
     );
   }
+
+
+Widget _buildAuthSection(BuildContext context, WidgetRef ref) {
+  final currentUser = ref.watch(currentUserProvider);
+  final isAuthenticated = ref.watch(isAuthenticatedProvider);
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 12),
+        child: Text(
+          'Account',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+          ),
+        ),
+        child: Column(
+          children: [
+            if (!isAuthenticated)
+              ListTile(
+                leading: Icon(
+                  Icons.login,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                title: Text(
+                  'Sign In',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  'Backup your data to the cloud',
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    fontSize: 14,
+                  ),
+                ),
+                trailing: Icon(
+                  Icons.arrow_forward_ios,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                  size: 16,
+                ),
+                onTap: () => _navigateToLogin(context),
+              )
+            else ...[
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  child: Text(
+                    currentUser?.displayName?.substring(0, 1).toUpperCase() ?? 
+                    currentUser?.email?.substring(0, 1).toUpperCase() ?? 'U',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                title: Text(
+                  currentUser?.displayName ?? currentUser?.email ?? 'User',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  currentUser?.email ?? 'Signed In',
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: Icon(
+                  Icons.logout,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                title: Text(
+                  'Sign Out',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                onTap: () => _signOut(context, ref),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+void _navigateToLogin(BuildContext context) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const LoginScreen(canSkip: true)),
+  );
+}
+
+void _signOut(BuildContext context, WidgetRef ref) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      title: Text(
+        'Sign Out',
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+      ),
+      content: Text(
+        'Are you sure you want to sign out?',
+        style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: TextButton.styleFrom(foregroundColor: Colors.red),
+          child: const Text('Sign Out'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmed == true) {
+    try {
+      await ref.read(authServiceProvider).signOut();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Signed out successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+}
 
   Widget _buildSettingsSection(
     BuildContext context, {
@@ -526,7 +699,7 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _resetCurrentMonth(BuildContext context) async {
+  void _resetCurrentMonth(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -555,7 +728,9 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
 
     if (confirmed == true) {
       try {
-        await GroceryService.resetAllItemsToUnbought();
+        await GroceryService.resetMonthlyItemsToUnbought(
+          ref.read(selectedMonthProvider),
+        );
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

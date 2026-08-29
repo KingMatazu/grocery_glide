@@ -96,10 +96,6 @@ final monthlyGroceryItemsProvider = StreamProvider.family<List<GroceryItem>, Str
   return GroceryService.watchMonthlyItems(monthKey);
 });
 
-// final ensureMonthlyItemsProvider = FutureProvider.family<void, String>((ref, monthKey) async{
-//   await GroceryService.ensureMonthlyItemsExist(monthKey);
-// },);
-
 // Statistics model
 class GroceryStats {
   final int totalItems;

@@ -7,25 +7,6 @@ import '../model/grocery_item.dart';
 class GroceryService {
   static final Isar _isar = GroceryDatabase.instance;
 
-  // Debug method to check whats in the database
-  static Future<void> debugDatabaseContents() async {
-    final allItems = await _isar.groceryItems.where().findAll();
-    if (kDebugMode) {
-      print('==== DATABASE CONTENTS ======');
-
-      for (final item in allItems) {
-        print('Item: ${item.itemName}');
-        print('   - month: ${item.monthKey}');
-        print('   - is master template: ${item.isMasterTemplate}');
-        print('   - id: ${item.id}');
-        print('   - is bought: ${item.isBought}');
-        print('----');
-      }
-      print('Total items: ${allItems.length}');
-      print('=================================');
-    }
-  }
-
   // Add a new grocery item
   static Future<int> addItem(GroceryItem item) async {
     return await _isar.writeTxn(() async {
@@ -82,10 +63,15 @@ class GroceryService {
     });
   }
 
-  // Reset all items to unbought (for monthly template reset)
-  static Future<void> resetAllItemsToUnbought() async {
+  // Reset a month's items to unbought (master template is left untouched)
+  static Future<void> resetMonthlyItemsToUnbought(String monthKey) async {
     await _isar.writeTxn(() async {
-      final items = await _isar.groceryItems.where().findAll();
+      final items = await _isar.groceryItems
+          .filter()
+          .monthKeyEqualTo(monthKey)
+          .and()
+          .isMasterTemplateEqualTo(false)
+          .findAll();
       for (final item in items) {
         item.isBought = false;
         item.touch();
@@ -127,28 +113,6 @@ class GroceryService {
 
     final boughtCount = allItems.where((item) => item.isBought).length;
     return (boughtCount / allItems.length) * 100;
-  }
-
-  // Create monthly template from current list
-  static Future<List<GroceryItem>> createMonthlyTemplate() async {
-    final items = await getAllItems();
-    final templateItems = <GroceryItem>[];
-
-    await _isar.writeTxn(() async {
-      // Clear existing items
-      await _isar.groceryItems.where().deleteAll();
-
-      // Create new template items (reset to unbought)
-      for (final item in items) {
-        final templateItem = GroceryItem.fromTemplate(item);
-        templateItems.add(templateItem);
-      }
-
-      // Save template items
-      await _isar.groceryItems.putAll(templateItems);
-    });
-
-    return templateItems;
   }
 
   // Stream for real-time updates
@@ -288,7 +252,7 @@ class GroceryService {
           .findAll();
 
       if (kDebugMode) {
-        print('Found ${masterItems.length} master temolate items');
+        print('Found ${masterItems.length} master template items');
       }
 
       if (masterItems.isNotEmpty) {
@@ -303,58 +267,10 @@ class GroceryService {
       }
     } else {
       if (kDebugMode) {
-        print('Monthly items already exisit for $monthKey');
-        await addMissingTemplateItems(monthKey);
+        print('Monthly items already exist for $monthKey');
       }
+      await addMissingTemplateItems(monthKey);
     }
-  }
-
-  static Future<void> syncMonthlyItemsWithTemplate(String monthKey) async{
-    final masterItems = await _isar.groceryItems
-    .filter()
-    .isMasterTemplateEqualTo(true)
-    .findAll();
-
-    final existingMonthlyItems = await _isar.groceryItems
-    .filter()
-    .monthKeyEqualTo(monthKey)
-    .and()
-    .isMasterTemplateEqualTo(false)
-    .findAll();
-
-    await _isar.writeTxn(() async{
-      // create a map of existing items for quick lookup
-      final existingItemsMap = <String, GroceryItem>{};
-      for (final item in existingMonthlyItems) {
-        existingItemsMap[item.itemName.toLowerCase()] = item;
-      }
-
-      // process each master template item
-      for (final masterItem in masterItems) {
-        final existingItem = existingItemsMap[masterItem.itemName.toLowerCase()];
-
-        if (existingItem != null) {
-          // item exists - update quantity/price but preserve bought status
-          existingItem.quantity = masterItem.quantity;
-          existingItem.price = masterItem.price;
-          existingItem.notes = masterItem.notes;
-          existingItem.touch();
-          await _isar.groceryItems.put(existingItem);
-        } else {
-          // Item doesnt exisit - create new one
-          final newItem = GroceryItem(
-            itemName: masterItem.itemName,
-            quantity: masterItem.quantity,
-            price: masterItem.price,
-            notes: masterItem.notes,
-          );
-          newItem.monthKey = monthKey;
-          newItem.isMasterTemplate = false;
-          newItem.isBought = false;
-          await _isar.groceryItems.put(newItem);
-        }
-      }
-    });
   }
 
   // add missing template items to a month without affecting existing items

@@ -283,6 +283,7 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
   void _createFromCurrentMonth() async {
     final currentMonth = ref.read(currentMonthProvider);
     final currentItems = await GroceryService.getMonthlyItems(currentMonth);
+    if (!mounted) return;
 
     if (currentItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -322,6 +323,7 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
     );
 
     if (confirmed != true) return;
+    if (!mounted) return;
 
     int addedCount = 0;
     int skippedCount = 0;
@@ -500,6 +502,7 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error saving template: $e'),
