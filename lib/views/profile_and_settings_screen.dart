@@ -4,11 +4,12 @@ import 'package:grocery_glide/providers/auth_provider.dart';
 import 'package:grocery_glide/providers/currency_provider.dart';
 import 'package:grocery_glide/providers/grocery_providers.dart';
 import 'package:grocery_glide/services/grocery_service.dart';
+import 'package:grocery_glide/services/notification_service.dart';
 import 'package:grocery_glide/themes/theme_provider.dart';
 import 'package:grocery_glide/views/login_screen.dart';
 import 'package:grocery_glide/views/master_template_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
+
 
 class ProfileAndSettingsScreen extends ConsumerWidget {
   const ProfileAndSettingsScreen({super.key});
@@ -128,12 +129,6 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
               context,
               title: 'App Settings',
               items: [
-                _SettingsItem(
-                  icon: Icons.system_update,
-                  title: 'Check for Updates',
-                  subtitle: 'Get the Latest version',
-                  onTap: () => _checkForUpdates(context),
-                ),
                 _SettingsItem(
                   icon: Icons.notifications,
                   title: 'Notifications',
@@ -421,22 +416,15 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
-                width: 2,
-              ),
-            ),
-            child: Icon(
-              Icons.person,
-              color: Theme.of(context).colorScheme.onPrimary,
-              size: 40,
-            ),
+          CircleAvatar(
+            radius: 40,
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            backgroundImage: (currentUser?.photoURL != null && currentUser!.photoURL!.isNotEmpty)
+                ? NetworkImage(currentUser.photoURL!)
+                : null,
+            child: (currentUser?.photoURL == null || currentUser!.photoURL!.isEmpty)
+                ? Icon(Icons.person, color: Theme.of(context).colorScheme.onPrimary, size: 40)
+                : null,
           ),
           const SizedBox(height: 16),
           Text(
@@ -521,11 +509,16 @@ Widget _buildAuthSection(BuildContext context, WidgetRef ref) {
               ListTile(
                 leading: CircleAvatar(
                   backgroundColor: Theme.of(context).colorScheme.primary,
-                  child: Text(
-                    currentUser?.displayName?.substring(0, 1).toUpperCase() ?? 
-                    currentUser?.email?.substring(0, 1).toUpperCase() ?? 'U',
-                    style: const TextStyle(color: Colors.white),
-                  ),
+                  backgroundImage: (currentUser?.photoURL != null && currentUser!.photoURL!.isNotEmpty)
+                      ? NetworkImage(currentUser.photoURL!)
+                      : null,
+                  child: (currentUser?.photoURL == null || currentUser!.photoURL!.isEmpty)
+                      ? Text(
+                          currentUser?.displayName?.substring(0, 1).toUpperCase() ??
+                          currentUser?.email?.substring(0, 1).toUpperCase() ?? 'U',
+                          style: const TextStyle(color: Colors.white),
+                        )
+                      : null,
                 ),
                 title: Text(
                   currentUser?.displayName ?? currentUser?.email ?? 'User',
@@ -819,89 +812,177 @@ void _signOut(BuildContext context, WidgetRef ref) async {
     }
   }
 
-  void _showNotificationSettings(BuildContext context) {
+  void _showNotificationSettings(BuildContext context) async {
+    const prefsKey = 'daily_reminders_enabled';
+    final prefs = await SharedPreferences.getInstance();
+    final enabled = prefs.getBool(prefsKey) ?? false;
+
+    if (!context.mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          var localEnabled = enabled;
+          return AlertDialog(
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            title: Text(
+              'Daily Reminders',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Get reminded to record your grocery list at 10:00 AM, 4:00 PM and 7:30 PM.',
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    'Enable reminders',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  value: localEnabled,
+                  onChanged: (value) async {
+                    setDialogState(() => localEnabled = value);
+                    if (value) {
+                      final granted = await NotificationService.instance
+                          .requestPermission();
+                      if (granted == true) {
+                        await NotificationService.instance.scheduleDailyReminders();
+                        await prefs.setBool(prefsKey, true);
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Daily reminders enabled'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        }
+                      } else {
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Notification permission denied. Enable it in your device settings.',
+                                ),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                          }
+                        }
+                      }
+                    } else {
+                      await NotificationService.instance.cancelAllReminders();
+                      await prefs.setBool(prefsKey, false);
+                      if (dialogContext.mounted) {
+                        Navigator.pop(dialogContext);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Daily reminders disabled'),
+                              backgroundColor: Colors.grey,
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(
+                  'Close',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showAbout(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Theme.of(context).colorScheme.surface,
-        title: Text(
-          'Notifications',
-          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-        ),
-        content: Text(
-          'Notification settings will be available in a future update.',
-          style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.shopping_cart, color: Colors.white, size: 30),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Grocery Glide',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Version 1.0.0',
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodyMedium?.color,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text('A simple and efficient grocery list manager.'),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Features:', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+                  const Text('• Master template management'),
+                  const Text('• Monthly grocery lists'),
+                  const Text('• Shopping progress tracking'),
+                  const Text('• Search and filter capabilities'),
+                ],
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            child: Text('OK', style: TextStyle(color: Theme.of(context).colorScheme.primary)),
           ),
         ],
       ),
     );
   }
 
-  void _showAbout(BuildContext context) {
-    showAboutDialog(
-      context: context,
-      applicationName: 'Grocery Glide',
-      applicationVersion: '1.0.2',
-      applicationIcon: Container(
-        width: 60,
-        height: 60,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Icon(Icons.shopping_cart, color: Colors.white, size: 30),
-      ),
-      children: [
-        const Text('A simple and efficient grocery list manager.'),
-        const SizedBox(height: 16),
-        const Text('Features:'),
-        const Text('• Master template management'),
-        const Text('• Monthly grocery lists'),
-        const Text('• Shopping progress tracking'),
-        const Text('• Search and filter capabilities'),
-      ],
-    );
   }
-
-  Future<void> _checkForUpdates(BuildContext context) async {
-    // UPDATE THIS URL TO YOUR ACTUAL UPDATE PAGE
-    const updateUrl = 'https://github.com/KingMatazu/grocery_glide/releases';
-    
-    final uri = Uri.parse(updateUrl);
-
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(
-          uri,
-          mode: LaunchMode.externalApplication,
-        );
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not open updates page'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error opening updates page: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-}
 
 class _SettingsItem {
   final IconData icon;

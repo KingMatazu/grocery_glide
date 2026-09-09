@@ -7,7 +7,7 @@ final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((r
 });
 
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
-  ThemeModeNotifier() : super(ThemeMode.dark) {
+  ThemeModeNotifier() : super(ThemeMode.system) {
     _loadThemeMode();
   }
 
@@ -15,7 +15,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
 
   Future<void> _loadThemeMode() async {
     final prefs = await SharedPreferences.getInstance();
-    final themeModeString = prefs.getString(_themeKey) ?? 'dark';
+    final themeModeString = prefs.getString(_themeKey) ?? 'system';
     state = _getThemeModeFromString(themeModeString);
   }
 
@@ -42,7 +42,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
       case 'system':
         return ThemeMode.system;
       default:
-        return ThemeMode.dark;
+        return ThemeMode.system;
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grocery_glide/providers/auth_provider.dart';
+import 'package:grocery_glide/views/first_time_setup_screen.dart';
 import 'package:grocery_glide/views/grocery_list_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -21,6 +22,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isLogin = true;
   bool _isLoading = false;
   bool _obscurePassword = true;
+
+  Widget get _homeScreen =>
+      widget.canSkip ? const GroceryListScreen() : const FirstTimeSetupScreen();
 
   @override
   void dispose() {
@@ -58,7 +62,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const GroceryListScreen()),
+          MaterialPageRoute(builder: (_) => _homeScreen),
         );
       }
     } catch (e) {
@@ -122,7 +126,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (user != null && mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const GroceryListScreen()),
+          MaterialPageRoute(builder: (_) => _homeScreen),
         );
       }
     } catch (e) {
@@ -431,9 +435,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onPressed: () {
                         Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => const GroceryListScreen(),
-                          ),
+                          MaterialPageRoute(builder: (_) => _homeScreen),
                         );
                       },
                       child: Text(

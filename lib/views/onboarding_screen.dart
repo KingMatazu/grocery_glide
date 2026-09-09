@@ -1,6 +1,6 @@
 // Create: lib/views/onboarding_screen.dart
 import 'package:flutter/material.dart';
-import 'package:grocery_glide/views/first_time_setup_screen.dart';
+import 'package:grocery_glide/views/login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -60,13 +60,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const FirstTimeSetupScreen()),
+        MaterialPageRoute(builder: (_) => const LoginScreen(canSkip: false)),
       );
     }
-  }
-
-  Future<void> _skipOnboarding() async {
-    await _completeOnboarding();
   }
 
   @override
@@ -76,22 +72,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Skip button
-            Align(
-              alignment: Alignment.topRight,
-              child: TextButton(
-                onPressed: _skipOnboarding,
-                child: Text(
-                  'Skip',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-
             // PageView with onboarding pages
             Expanded(
               child: PageView.builder(

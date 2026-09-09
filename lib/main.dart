@@ -1,12 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grocery_glide/database/grocery_database.dart';
 import 'package:grocery_glide/services/grocery_service.dart';
+import 'package:grocery_glide/services/notification_service.dart';
 import 'package:grocery_glide/themes/app_theme.dart';
 import 'package:grocery_glide/themes/theme_provider.dart';
-import 'package:grocery_glide/views/first_time_setup_screen.dart';
 import 'package:grocery_glide/views/grocery_list_screen.dart';
+import 'package:grocery_glide/views/login_screen.dart';
 import 'package:grocery_glide/views/onboarding_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,6 +24,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Initialize notifications and schedule daily reminders after setup.
+  await NotificationService.instance.initialize();
 
   // Check for Shorebird over-the-air updates before launching.
   final updater = ShorebirdUpdater();
@@ -37,6 +43,7 @@ void main() async {
 
   await GroceryDatabase.initialize();
   runApp(const ProviderScope(child: MainApp()));
+  unawaited(NotificationService.instance.ensureDefaultReminders());
 }
 
 class MainApp extends ConsumerWidget {
@@ -114,12 +121,12 @@ class SplashScreen extends StatelessWidget {
         }
         
         // 1. First time ever -> Onboarding
-        // 2. After onboarding -> First time setup (master template)
+        // 2. After onboarding (or logged-in returning users without setup) -> Login, then setup
         // 3. After setup -> Main app
         if (!onboardingComplete) {
           return const OnboardingScreen();
         } else if (!firstTimeSetupComplete){
-          return const FirstTimeSetupScreen();
+          return const LoginScreen(canSkip: false);
         } else {
           return const GroceryListScreen();
         }
