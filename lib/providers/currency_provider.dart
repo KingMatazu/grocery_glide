@@ -52,16 +52,14 @@ class AppCurrencies {
 }
 
 // Currency provider
-final currencyProvider = StateNotifierProvider<CurrencyNotifier, CurrencyData>((ref) {
-  return CurrencyNotifier();
-});
-
-class CurrencyNotifier extends StateNotifier<CurrencyData> {
-  CurrencyNotifier() : super(AppCurrencies.currencies[0]) {
-    _loadCurrency();
-  }
-
+class CurrencyNotifier extends Notifier<CurrencyData> {
   static const String _currencyKey = 'selected_currency';
+
+  @override
+  CurrencyData build() {
+    _loadCurrency();
+    return AppCurrencies.currencies[0];
+  }
 
   Future<void> _loadCurrency() async {
     final prefs = await SharedPreferences.getInstance();
@@ -75,6 +73,8 @@ class CurrencyNotifier extends StateNotifier<CurrencyData> {
     await prefs.setString(_currencyKey, currency.code);
   }
 }
+
+final currencyProvider = NotifierProvider<CurrencyNotifier, CurrencyData>(CurrencyNotifier.new);
 
 // Currency formatter provider
 final currencyFormatterProvider = Provider<NumberFormat>((ref) {

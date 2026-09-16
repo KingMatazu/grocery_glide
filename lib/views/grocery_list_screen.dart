@@ -125,10 +125,10 @@ class _GroceryListScreenState extends ConsumerState<GroceryListScreen> {
             SearchAndFilterBar(
               searchController: _searchController,
               onSearchChanged: (query) {
-                ref.read(searchQueryProvider.notifier).state = query;
+                ref.read(searchQueryProvider.notifier).setQuery(query);
               },
               onFilterChanged: (filter) {
-                ref.read(filterTypeProvider.notifier).state = filter;
+                ref.read(filterTypeProvider.notifier).setFilter(filter);
               },
             ),
             // List
@@ -410,7 +410,7 @@ void _showMonthPicker(BuildContext context, WidgetRef ref) {
         } // debug log
         // Ensure items exist for the selected month
         await GroceryService.ensureMonthlyItemsExist(monthKey);
-        ref.read(selectedMonthProvider.notifier).state = monthKey;
+        ref.read(selectedMonthProvider.notifier).selectMonth(monthKey);
         if (!context.mounted) return;
         Navigator.pop(context);
       },

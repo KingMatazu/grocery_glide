@@ -15,11 +15,23 @@ final groceryItemsProvider = StreamProvider<List<GroceryItem>>((ref) {
 // });
 
 // Provider for search query
-final searchQueryProvider = StateProvider<String>((ref) => '');
+class SearchQueryNotifier extends Notifier<String> {
+  @override
+  String build() => '';
+
+  void setQuery(String query) => state = query;
+}
+final searchQueryProvider = NotifierProvider<SearchQueryNotifier, String>(SearchQueryNotifier.new);
 
 // Provider for filter type
 enum FilterType { all, bought, unbought }
-final filterTypeProvider = StateProvider<FilterType>((ref) => FilterType.all);
+class FilterTypeNotifier extends Notifier<FilterType> {
+  @override
+  FilterType build() => FilterType.all;
+
+  void setFilter(FilterType filter) => state = filter;
+}
+final filterTypeProvider = NotifierProvider<FilterTypeNotifier, FilterType>(FilterTypeNotifier.new);
 
 // Provider for filtered and searched items
 final filteredGroceryItemsProvider = Provider<AsyncValue<List<GroceryItem>>>((ref) {
@@ -82,14 +94,20 @@ final masterTemplateProvider = StreamProvider<List<GroceryItem>>((ref) {
 });
 
 // Provider for current month key
-final currentMonthProvider = StateProvider<String>((ref) {
-  return DateFormat('yyyy-MM').format(DateTime.now());
-});
+class CurrentMonthNotifier extends Notifier<String> {
+  @override
+  String build() => DateFormat('yyyy-MM').format(DateTime.now());
+}
+final currentMonthProvider = NotifierProvider<CurrentMonthNotifier, String>(CurrentMonthNotifier.new);
 
 // Provider for selected month (for history viewing)
-final selectedMonthProvider = StateProvider<String>((ref) {
-  return DateFormat('yyyy-MM').format(DateTime.now());
-});
+class SelectedMonthNotifier extends Notifier<String> {
+  @override
+  String build() => DateFormat('yyyy-MM').format(DateTime.now());
+
+  void selectMonth(String monthKey) => state = monthKey;
+}
+final selectedMonthProvider = NotifierProvider<SelectedMonthNotifier, String>(SelectedMonthNotifier.new);
 
 // Provider for monthly grocery items
 final monthlyGroceryItemsProvider = StreamProvider.family<List<GroceryItem>, String>((ref, monthKey) {
