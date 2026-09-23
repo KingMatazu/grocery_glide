@@ -22,8 +22,16 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Build unsigned IPA
-        run: flutter build ipa --no-codesign --release --build-name=1.0.0 --build-number=1
+      - name: Build unsigned Runner.app
+        run: flutter build ios --release --no-codesign --build-name=1.0.0 --build-number=1
+
+      - name: Package unsigned IPA (Payload zip)
+        run: |
+          mkdir -p build/ios/ipa/Payload
+          cp -R build/ios/iphoneos/Runner.app build/ios/ipa/Payload/
+          cd build/ios/ipa
+          zip -r GroceryGlide.ipa Payload/
+          ls -lh GroceryGlide.ipa
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
