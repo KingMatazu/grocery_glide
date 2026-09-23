@@ -64,7 +64,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '847070903313',
     projectId: 'groceryglide-89876',
     storageBucket: 'groceryglide-89876.firebasestorage.app',
-    iosBundleId: 'com.example.groceryGlide',
+    iosBundleId: 'com.bvbyco.groceryGlide',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -73,7 +73,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '847070903313',
     projectId: 'groceryglide-89876',
     storageBucket: 'groceryglide-89876.firebasestorage.app',
-    iosBundleId: 'com.example.groceryGlide',
+    iosBundleId: 'com.bvbyco.groceryGlide',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

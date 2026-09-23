@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
@@ -20,30 +21,107 @@ import 'package:shorebird_code_push/shorebird_code_push.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Surface *every* error instead of white-screening. Sideloaded builds have
+  // no crash reporter, so route exceptions to an on-screen error widget and a
+  // debug print.
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('FLUTTER ERROR: ${details.exception}');
+    debugPrint('${details.stack}');
+  };
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+    debugPrint('PLATFORM/MISSING-PLUGIN ERROR: $error\n$stack');
+    return true;
+  };
 
-  // Initialize notifications and schedule daily reminders after setup.
-  await NotificationService.instance.initialize();
+  ErrorWidget.builder = (FlutterErrorDetails details) => _StartupErrorView(
+        message: details.exceptionAsString(),
+      );
 
-  // Check for Shorebird over-the-air updates before launching.
-  final updater = ShorebirdUpdater();
-  if (updater.isAvailable) {
-    final status = await updater.checkForUpdate();
-    if (status == UpdateStatus.outdated) {
-      try {
-        await updater.update();
-      } on UpdateException catch (error) {
-        debugPrint('Shorebird update failed: ${error.message}');
-      }
-    }
+  // Initialize Firebase (best-effort; sideloads should not die on a missing
+  // GoogleService-Info or reversed client mismatch).
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e, s) {
+    debugPrint('Firebase init skipped: $e\n$s');
   }
 
-  await GroceryDatabase.initialize();
+  // Initialize notifications (best-effort).
+  try {
+    await NotificationService.instance.initialize();
+  } catch (e, s) {
+    debugPrint('Notifications init skipped: $e\n$s');
+  }
+
+  // Check for Shorebird over-the-air updates (best-effort; not installed on
+  // plain `flutter build ipa` sideloads → checkForUpdate is a no-op).
+  try {
+    final updater = ShorebirdUpdater();
+    if (updater.isAvailable) {
+      final status = await updater.checkForUpdate();
+      if (status == UpdateStatus.outdated) {
+        try {
+          await updater.update();
+        } on UpdateException catch (error) {
+          debugPrint('Shorebird update failed: ${error.message}');
+        }
+      }
+    }
+  } catch (e, s) {
+    debugPrint('Shorebird check skipped: $e\n$s');
+  }
+
+  try {
+    await GroceryDatabase.initialize();
+  } catch (e, s) {
+    debugPrint('Isar init failed: $e\n$s');
+    rethrow;
+  }
+
   runApp(const ProviderScope(child: MainApp()));
   unawaited(NotificationService.instance.ensureDefaultReminders());
+}
+
+class _StartupErrorView extends StatelessWidget {
+  const _StartupErrorView({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFF101418),
+      child: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
+                const SizedBox(height: 12),
+                const Text(
+                  'Grocery Glide hit an error',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SelectableText(
+                  message,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MainApp extends ConsumerWidget {
