@@ -1,0 +1,33 @@
+name: iOS unsigned IPA
+
+on:
+  push:
+    tags:
+      - 'ios-*'
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter (stable)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build unsigned IPA
+        run: flutter build ipa --no-codesign --release --build-name=1.0.0 --build-number=1
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: grocery-glide-ipa
+          path: build/ios/ipa/*.ipa
+          if-no-files-found: error
