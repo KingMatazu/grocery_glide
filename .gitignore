@@ -44,3 +44,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /android/key.properties
+
+# Play Store review credentials & notes (local only — never commit)
+play_review_credentials.md
