@@ -13,13 +13,40 @@ class NotificationService {
 
   Future<void> initialize() async {
     tz.initializeTimeZones();
+    await _useDeviceTimeZone();
 
+    // Must be a resource that something references statically. The launcher
+    // icon here is `@mipmap/launcher_icon`; this used to say
+    // `@mipmap/ic_launcher`, which nothing in the manifest or resources
+    // pointed at, so AGP's release-only resource optimization dropped it and
+    // the lookup below returned 0. The plugin then threw `invalid_icon` from
+    // `initialize()`, which ran before `runApp`, so the app sat on the launch
+    // screen forever with no error and no crash. Debug and profile builds skip
+    // resource optimization, which is why it only ever showed up in release.
     const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@mipmap/launcher_icon');
 
     const settings = InitializationSettings(android: androidSettings);
 
     await _plugin.initialize(settings: settings);
+  }
+
+  /// Point `tz.local` at the device's timezone.
+  ///
+  /// `initializeTimeZones` only loads the database; without this, `tz.local`
+  /// stays UTC and every reminder is scheduled at the wrong wall-clock time
+  /// for everyone outside UTC. There is no timezone-name channel available
+  /// without pulling in another plugin, so match a location by current offset.
+  Future<void> _useDeviceTimeZone() async {
+    final offset = DateTime.now().timeZoneOffset;
+    tz.Location? match;
+    for (final location in tz.timeZoneDatabase.locations.values) {
+      if (location.currentTimeZone.offset == offset) {
+        match = location;
+        break;
+      }
+    }
+    tz.setLocalLocation(match ?? tz.UTC);
   }
 
   Future<bool?> requestPermission() async {

@@ -41,56 +41,92 @@ void main() async {
         message: details.exceptionAsString(),
       );
 
-  // Initialize Firebase (best-effort; sideloads should not die on a missing
-  // GoogleService-Info or reversed client mismatch).
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (e, s) {
-    debugPrint('Firebase init skipped: $e\n$s');
-  }
+  final failure = await _bootstrap();
 
-  // Initialize notifications (best-effort).
-  try {
-    await NotificationService.instance.initialize();
-  } catch (e, s) {
-    debugPrint('Notifications init skipped: $e\n$s');
-  }
+  // Unconditional. Anything thrown before here left the user staring at the
+  // launch screen forever: no first frame, no crash, no error. One bad
+  // notification icon shipped that way to the Play Store, so startup is now
+  // reported on screen rather than thrown.
+  runApp(ProviderScope(child: _MainApp(startupFailure: failure)));
 
-  // Check for Shorebird over-the-air updates (best-effort; not installed on
-  // plain `flutter build ipa` sideloads → checkForUpdate is a no-op).
+  if (failure == null) {
+    unawaited(NotificationService.instance.ensureDefaultReminders());
+  }
+}
+
+/// A startup step that did not finish, and why.
+class _StartupFailure {
+  const _StartupFailure(this.step, this.error);
+
+  final String step;
+  final Object error;
+}
+
+/// Caps how long any one step may take.
+///
+/// A plugin that never answers its platform channel would otherwise hang
+/// startup indefinitely, which is indistinguishable from a crash to the user.
+const _startupStepTimeout = Duration(seconds: 20);
+
+/// Runs one startup step, turning any failure into a value.
+///
+/// The timeout matters as much as the catch: a plugin that simply stops
+/// responding is exactly as invisible as one that throws.
+Future<_StartupFailure?> _attempt(
+  String step,
+  Future<void> Function() action,
+) async {
   try {
+    await action().timeout(_startupStepTimeout);
+    return null;
+  } catch (error) {
+    debugPrint('$step init failed: $error');
+    return _StartupFailure(step, error);
+  }
+}
+
+/// Prepares everything the app needs, reporting rather than throwing.
+///
+/// Steps are split by whether the app can still do its job without them.
+/// Notifications and the Shorebird check are conveniences, so they only log.
+/// Firebase and the database are not: sign-in is mandatory and every screen
+/// reads from Isar, so failing either has to be visible instead of leaving
+/// the user on a splash screen.
+Future<_StartupFailure?> _bootstrap() async {
+  await _attempt(
+    'Notifications',
+    NotificationService.instance.initialize,
+  );
+
+  await _attempt('Shorebird', () async {
     final updater = ShorebirdUpdater();
-    if (updater.isAvailable) {
-      final status = await updater.checkForUpdate();
-      if (status == UpdateStatus.outdated) {
-        try {
-          await updater.update();
-        } on UpdateException catch (error) {
-          debugPrint('Shorebird update failed: ${error.message}');
-        }
+    if (!updater.isAvailable) return;
+    final status = await updater.checkForUpdate();
+    if (status == UpdateStatus.outdated) {
+      try {
+        await updater.update();
+      } on UpdateException catch (error) {
+        debugPrint('Shorebird update failed: ${error.message}');
       }
     }
-  } catch (e, s) {
-    debugPrint('Shorebird check skipped: $e\n$s');
-  }
+  });
 
-  try {
-    await GroceryDatabase.initialize();
-  } catch (e, s) {
-    debugPrint('Isar init failed: $e\n$s');
-    rethrow;
-  }
+  final firebase = await _attempt(
+    'Firebase',
+    () => Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
+  );
+  if (firebase != null) return firebase;
 
-  runApp(const ProviderScope(child: MainApp()));
-  unawaited(NotificationService.instance.ensureDefaultReminders());
+  return _attempt('The grocery database', GroceryDatabase.initialize);
 }
 
 class _StartupErrorView extends StatelessWidget {
-  const _StartupErrorView({required this.message});
+  const _StartupErrorView({required this.message, this.step});
 
   final String message;
+
+  /// Which startup step failed, when it is known.
+  final String? step;
 
   @override
   Widget build(BuildContext context) {
@@ -105,9 +141,12 @@ class _StartupErrorView extends StatelessWidget {
               children: [
                 const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
                 const SizedBox(height: 12),
-                const Text(
-                  'Grocery Glide hit an error',
-                  style: TextStyle(
+                Text(
+                  step == null
+                      ? 'Grocery Glide hit an error'
+                      : 'Grocery Glide could not start: $step',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -131,12 +170,18 @@ class _StartupErrorView extends StatelessWidget {
 /// changes. See [_AppGateState.build].
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
-class MainApp extends ConsumerWidget {
-  const MainApp({super.key});
+class _MainApp extends ConsumerWidget {
+  const _MainApp({this.startupFailure});
+
+  /// Set when a startup step failed. The app is still built, but it renders the
+  /// failure instead of the gate, so the user is told what broke rather than
+  /// being left on the launch screen.
+  final _StartupFailure? startupFailure;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    final failure = startupFailure;
 
     return MaterialApp(
       navigatorKey: rootNavigatorKey,
@@ -145,7 +190,9 @@ class MainApp extends ConsumerWidget {
       theme: AppTheme.lightTheme(),
       darkTheme: AppTheme.darkTheme(),
       themeMode: themeMode,
-      home: const AppGate(),
+      home: failure == null
+          ? const AppGate()
+          : _StartupErrorView(step: failure.step, message: '${failure.error}'),
     );
   }
 }
