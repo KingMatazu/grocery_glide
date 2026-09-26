@@ -20,7 +20,13 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.bvbyco.grocery_glide"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+
+    // Pinned rather than inherited from the Flutter SDK. NDK r28 is the first
+    // series that links shared libraries with 16 KB page alignment by default,
+    // which Google Play requires for apps targeting API 35+ from 1 Feb 2027.
+    // Relying on `flutter.ndkVersion` meant the alignment of the shipped
+    // binaries depended on whichever NDK happened to be resolved.
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
