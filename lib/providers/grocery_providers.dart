@@ -1,12 +1,24 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grocery_glide/model/grocery_item.dart';
+import 'package:grocery_glide/providers/auth_provider.dart';
 import 'package:grocery_glide/services/grocery_service.dart';
 import 'package:intl/intl.dart';
 
+/// Grocery data scoped to the signed-in account.
+///
+/// Watching the user here rather than reading it inside each query is what
+/// makes the scoping hold: when the account changes, this provider is rebuilt
+/// and every stream built from it re-subscribes, instead of continuing to
+/// stream the previous account's rows.
+final groceryServiceProvider = Provider<GroceryService>((ref) {
+  final user = ref.watch(currentUserProvider);
+  return GroceryService(user?.uid);
+});
+
 // Provider for all grocery items stream
 final groceryItemsProvider = StreamProvider<List<GroceryItem>>((ref) {
-  return GroceryService.watchAllItems();
+  return ref.watch(groceryServiceProvider).watchAllItems();
 });
 
 // // Provider for filtered items (unbought only)
@@ -90,7 +102,7 @@ final groceryStatsProvider = Provider<AsyncValue<GroceryStats>>((ref) {
 
 // Provider for master template items
 final masterTemplateProvider = StreamProvider<List<GroceryItem>>((ref) {
-  return GroceryService.watchMasterTemplate();
+  return ref.watch(groceryServiceProvider).watchMasterTemplate();
 });
 
 // Provider for current month key
@@ -111,7 +123,7 @@ final selectedMonthProvider = NotifierProvider<SelectedMonthNotifier, String>(Se
 
 // Provider for monthly grocery items
 final monthlyGroceryItemsProvider = StreamProvider.family<List<GroceryItem>, String>((ref, monthKey) {
-  return GroceryService.watchMonthlyItems(monthKey);
+  return ref.watch(groceryServiceProvider).watchMonthlyItems(monthKey);
 });
 
 // Statistics model

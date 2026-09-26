@@ -5,9 +5,10 @@ import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grocery_glide/database/grocery_database.dart';
+import 'package:grocery_glide/model/app_user.dart';
 import 'package:grocery_glide/providers/auth_provider.dart';
+import 'package:grocery_glide/providers/grocery_providers.dart';
 import 'package:grocery_glide/providers/startup_provider.dart';
-import 'package:grocery_glide/services/grocery_service.dart';
 import 'package:grocery_glide/services/notification_service.dart';
 import 'package:grocery_glide/themes/app_theme.dart';
 import 'package:grocery_glide/themes/theme_provider.dart';
@@ -171,6 +172,19 @@ class AppGate extends ConsumerStatefulWidget {
 class _AppGateState extends ConsumerState<AppGate> {
   String? _ensuredMonth;
 
+  /// Claims of pre-ownership rows, one per account per launch.
+  final Map<String, Future<void>> _ownershipClaims = {};
+
+  /// Hands rows that predate per-account ownership to the account signing in.
+  ///
+  /// Awaited before the grocery list appears, otherwise the first render would
+  /// query for rows the account does not own yet and show an empty list for a
+  /// frame before the claim landed.
+  Future<void> _claimOwnership(String uid) => _ownershipClaims.putIfAbsent(
+        uid,
+        () => ref.read(groceryServiceProvider).ensureOwnership(),
+      );
+
   /// Populate the current month once per launch.
   ///
   /// Guarded by month so a rollover re-runs it. Deliberately does not call
@@ -184,21 +198,32 @@ class _AppGateState extends ConsumerState<AppGate> {
       if (kDebugMode) {
         debugPrint('App startup: ensuring items for $month');
       }
-      await GroceryService.ensureMonthlyItemsExist(month);
+      await ref.read(groceryServiceProvider).ensureMonthlyItemsExist(month);
     });
   }
 
-  Widget _signedInScreen(StartupState startup) {
-    if (!startup.firstTimeSetupComplete) {
-      return const FirstTimeSetupScreen();
-    }
-    _ensureCurrentMonth();
-    return const GroceryListScreen();
+  Widget _signedInScreen(StartupState state, AppUser? user) {
+    if (user == null) return const _SplashView();
+
+    return FutureBuilder<void>(
+      future: _claimOwnership(user.uid),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const _SplashView();
+        }
+        if (!state.firstTimeSetupComplete) {
+          return const FirstTimeSetupScreen();
+        }
+        _ensureCurrentMonth();
+        return const GroceryListScreen();
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final authStatus = ref.watch(authStatusProvider);
+    final currentUser = ref.watch(currentUserProvider);
     final startup = ref.watch(startupStateProvider);
 
     // Signing in or out changes which screen the root should be showing, and
@@ -250,7 +275,7 @@ class _AppGateState extends ConsumerState<AppGate> {
               },
             ),
           AuthStatus.signedOut => const LoginScreen(),
-          AuthStatus.signedIn => _signedInScreen(state),
+          AuthStatus.signedIn => _signedInScreen(state, currentUser),
         };
       },
     );

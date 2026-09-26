@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grocery_glide/providers/auth_provider.dart';
 import 'package:grocery_glide/providers/currency_provider.dart';
 import 'package:grocery_glide/providers/grocery_providers.dart';
-import 'package:grocery_glide/services/grocery_service.dart';
+import 'package:grocery_glide/providers/startup_provider.dart';
 import 'package:grocery_glide/services/notification_service.dart';
 import 'package:grocery_glide/themes/theme_provider.dart';
 import 'package:grocery_glide/views/master_template_screen.dart';
@@ -118,7 +118,7 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
                   title: 'Clear All Data',
                   subtitle: 'Delete all grocery data',
                   textColor: Colors.red,
-                  onTap: () => _clearAllData(context),
+                  onTap: () => _clearAllData(context, ref),
                 ),
               ],
             ),
@@ -696,7 +696,7 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
 
     if (confirmed == true) {
       try {
-        await GroceryService.resetMonthlyItemsToUnbought(
+        await ref.read(groceryServiceProvider).resetMonthlyItemsToUnbought(
           ref.read(selectedMonthProvider),
         );
         if (context.mounted) {
@@ -732,7 +732,7 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _clearAllData(BuildContext context) async {
+  void _clearAllData(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -761,10 +761,13 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
 
     if (confirmed == true) {
       try {
-        await GroceryService.deleteAllItems();
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('first_time_setup_complete');
-        
+        await ref.read(groceryServiceProvider).deleteAllItems();
+        // Clearing the lists also clears the template, so the account has to go
+        // back through the setup step to build another. Invalidating also makes
+        // the gate act on it, which it previously could not because the
+        // resolved startup future was never re-read.
+        await resetFirstTimeSetup(ref);
+
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

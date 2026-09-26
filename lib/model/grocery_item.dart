@@ -7,6 +7,17 @@ part 'grocery_item.g.dart'; // This will be generated
 class GroceryItem {
   Id id = Isar.autoIncrement; // Auto-increment ID
   
+  /// Firebase account this row belongs to. Grocery data is local only, so this
+  /// is what stops two accounts sharing a device from seeing each other's
+  /// lists, templates and purchase history.
+  ///
+  /// Deliberately not `late`. Isar can only auto-migrate an added field when it
+  /// has a default, and existing rows have to land on the empty string so the
+  /// first account to sign in can claim them. A `late` field exposes no default
+  /// and would fail the open instead of migrating.
+  @Index()
+  String ownerUid = '';
+
   @Index()
   late String itemName;
   
@@ -62,6 +73,7 @@ class GroceryItem {
     quantity = template.quantity,
     price = template.price,
     isBought = false,
+    ownerUid = template.ownerUid,
     notes = template.notes,
     monthKey = template.monthKey {
     createdAt = DateTime.now();

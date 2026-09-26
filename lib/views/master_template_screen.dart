@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grocery_glide/model/grocery_item.dart';
 import 'package:grocery_glide/providers/currency_provider.dart';
 import 'package:grocery_glide/providers/grocery_providers.dart';
-import 'package:grocery_glide/services/grocery_service.dart';
 import 'package:grocery_glide/widgets/currency_selector.dart';
 import 'package:intl/intl.dart';
 
@@ -26,7 +25,7 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
   }
 
   Future<void> _loadExistingTemplate() async {
-    final existingItems = await GroceryService.getMasterTemplateItems();
+    final existingItems = await ref.read(groceryServiceProvider).getMasterTemplateItems();
     setState(() {
       stagingItems = List.from(existingItems);
     });
@@ -277,7 +276,7 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
 
   void _createFromCurrentMonth() async {
     final currentMonth = ref.read(currentMonthProvider);
-    final currentItems = await GroceryService.getMonthlyItems(currentMonth);
+    final currentItems = await ref.read(groceryServiceProvider).getMonthlyItems(currentMonth);
     if (!mounted) return;
 
     if (currentItems.isEmpty) {
@@ -493,14 +492,14 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
     try {
       // Save all staging items as the master template
       // This will clear existing master template and save new ones
-      await GroceryService.createMasterTemplate(stagingItems);
+      await ref.read(groceryServiceProvider).createMasterTemplate(stagingItems);
 
       // Create monthly items for current month
       final currentMonth = DateFormat('yyyy-MM').format(DateTime.now());
       // Clear exisitng monthly items for current month
-      await GroceryService.clearMonthlyItems(currentMonth);
+      await ref.read(groceryServiceProvider).clearMonthlyItems(currentMonth);
       // Create fresh monthly itmes for current month
-      await GroceryService.createMonthlyListFromTemplate(currentMonth);
+      await ref.read(groceryServiceProvider).createMonthlyListFromTemplate(currentMonth);
 
       setState(() {
         hasUnsavedChanges = false;

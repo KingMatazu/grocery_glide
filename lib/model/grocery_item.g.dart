@@ -47,23 +47,28 @@ const GroceryItemSchema = CollectionSchema(
       name: r'notes',
       type: IsarType.string,
     ),
-    r'price': PropertySchema(
+    r'ownerUid': PropertySchema(
       id: 6,
+      name: r'ownerUid',
+      type: IsarType.string,
+    ),
+    r'price': PropertySchema(
+      id: 7,
       name: r'price',
       type: IsarType.double,
     ),
     r'quantity': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'quantity',
       type: IsarType.long,
     ),
     r'totalPrice': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'totalPrice',
       type: IsarType.double,
     ),
     r'updatedAt': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'updatedAt',
       type: IsarType.dateTime,
     )
@@ -74,6 +79,19 @@ const GroceryItemSchema = CollectionSchema(
   deserializeProp: _groceryItemDeserializeProp,
   idName: r'id',
   indexes: {
+    r'ownerUid': IndexSchema(
+      id: -8016718989707307851,
+      name: r'ownerUid',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'ownerUid',
+          type: IndexType.hash,
+          caseSensitive: true,
+        )
+      ],
+    ),
     r'itemName': IndexSchema(
       id: 2219846343528216480,
       name: r'itemName',
@@ -141,6 +159,7 @@ int _groceryItemEstimateSize(
       bytesCount += 3 + value.length * 3;
     }
   }
+  bytesCount += 3 + object.ownerUid.length * 3;
   return bytesCount;
 }
 
@@ -156,10 +175,11 @@ void _groceryItemSerialize(
   writer.writeString(offsets[3], object.itemName);
   writer.writeString(offsets[4], object.monthKey);
   writer.writeString(offsets[5], object.notes);
-  writer.writeDouble(offsets[6], object.price);
-  writer.writeLong(offsets[7], object.quantity);
-  writer.writeDouble(offsets[8], object.totalPrice);
-  writer.writeDateTime(offsets[9], object.updatedAt);
+  writer.writeString(offsets[6], object.ownerUid);
+  writer.writeDouble(offsets[7], object.price);
+  writer.writeLong(offsets[8], object.quantity);
+  writer.writeDouble(offsets[9], object.totalPrice);
+  writer.writeDateTime(offsets[10], object.updatedAt);
 }
 
 GroceryItem _groceryItemDeserialize(
@@ -173,13 +193,14 @@ GroceryItem _groceryItemDeserialize(
     itemName: reader.readString(offsets[3]),
     monthKey: reader.readStringOrNull(offsets[4]),
     notes: reader.readStringOrNull(offsets[5]),
-    price: reader.readDouble(offsets[6]),
-    quantity: reader.readLong(offsets[7]),
+    price: reader.readDouble(offsets[7]),
+    quantity: reader.readLong(offsets[8]),
   );
   object.createdAt = reader.readDateTime(offsets[0]);
   object.id = id;
   object.isMasterTemplate = reader.readBool(offsets[2]);
-  object.updatedAt = reader.readDateTime(offsets[9]);
+  object.ownerUid = reader.readString(offsets[6]);
+  object.updatedAt = reader.readDateTime(offsets[10]);
   return object;
 }
 
@@ -203,12 +224,14 @@ P _groceryItemDeserializeProp<P>(
     case 5:
       return (reader.readStringOrNull(offset)) as P;
     case 6:
-      return (reader.readDouble(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 7:
-      return (reader.readLong(offset)) as P;
-    case 8:
       return (reader.readDouble(offset)) as P;
+    case 8:
+      return (reader.readLong(offset)) as P;
     case 9:
+      return (reader.readDouble(offset)) as P;
+    case 10:
       return (reader.readDateTime(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -310,6 +333,51 @@ extension GroceryItemQueryWhere
         upper: upperId,
         includeUpper: includeUpper,
       ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterWhereClause> ownerUidEqualTo(
+      String ownerUid) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'ownerUid',
+        value: [ownerUid],
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterWhereClause> ownerUidNotEqualTo(
+      String ownerUid) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'ownerUid',
+              lower: [],
+              upper: [ownerUid],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'ownerUid',
+              lower: [ownerUid],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'ownerUid',
+              lower: [ownerUid],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'ownerUid',
+              lower: [],
+              upper: [ownerUid],
+              includeUpper: false,
+            ));
+      }
     });
   }
 
@@ -1084,6 +1152,141 @@ extension GroceryItemQueryFilter
     });
   }
 
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition> ownerUidEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'ownerUid',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition>
+      ownerUidGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'ownerUid',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition>
+      ownerUidLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'ownerUid',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition> ownerUidBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'ownerUid',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition>
+      ownerUidStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'ownerUid',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition>
+      ownerUidEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'ownerUid',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition>
+      ownerUidContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'ownerUid',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition> ownerUidMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'ownerUid',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition>
+      ownerUidIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'ownerUid',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition>
+      ownerUidIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'ownerUid',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<GroceryItem, GroceryItem, QAfterFilterCondition> priceEqualTo(
     double value, {
     double epsilon = Query.epsilon,
@@ -1407,6 +1610,18 @@ extension GroceryItemQuerySortBy
     });
   }
 
+  QueryBuilder<GroceryItem, GroceryItem, QAfterSortBy> sortByOwnerUid() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'ownerUid', Sort.asc);
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterSortBy> sortByOwnerUidDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'ownerUid', Sort.desc);
+    });
+  }
+
   QueryBuilder<GroceryItem, GroceryItem, QAfterSortBy> sortByPrice() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'price', Sort.asc);
@@ -1544,6 +1759,18 @@ extension GroceryItemQuerySortThenBy
     });
   }
 
+  QueryBuilder<GroceryItem, GroceryItem, QAfterSortBy> thenByOwnerUid() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'ownerUid', Sort.asc);
+    });
+  }
+
+  QueryBuilder<GroceryItem, GroceryItem, QAfterSortBy> thenByOwnerUidDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'ownerUid', Sort.desc);
+    });
+  }
+
   QueryBuilder<GroceryItem, GroceryItem, QAfterSortBy> thenByPrice() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'price', Sort.asc);
@@ -1635,6 +1862,13 @@ extension GroceryItemQueryWhereDistinct
     });
   }
 
+  QueryBuilder<GroceryItem, GroceryItem, QDistinct> distinctByOwnerUid(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'ownerUid', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<GroceryItem, GroceryItem, QDistinct> distinctByPrice() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'price');
@@ -1701,6 +1935,12 @@ extension GroceryItemQueryProperty
   QueryBuilder<GroceryItem, String?, QQueryOperations> notesProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'notes');
+    });
+  }
+
+  QueryBuilder<GroceryItem, String, QQueryOperations> ownerUidProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'ownerUid');
     });
   }
 

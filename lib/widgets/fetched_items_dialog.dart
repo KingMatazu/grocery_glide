@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grocery_glide/model/grocery_item.dart';
 import 'package:grocery_glide/providers/currency_provider.dart';
+import 'package:grocery_glide/providers/grocery_providers.dart';
 import 'package:grocery_glide/services/fetched_service.dart';
-import 'package:grocery_glide/services/grocery_service.dart';
 
 class FetchedItemsDialog extends ConsumerStatefulWidget {
   final String currentMonthKey;
@@ -87,7 +87,7 @@ class _FetchedItemsDialogState extends ConsumerState<FetchedItemsDialog> {
   Future<void> _addToCurrentMonth(FetchedProduct product, int index) async {
     try {
       // Check for duplicate
-      final existingItems = await GroceryService.getMonthlyItems(widget.currentMonthKey);
+      final existingItems = await ref.read(groceryServiceProvider).getMonthlyItems(widget.currentMonthKey);
       final isDuplicate = existingItems.any(
         (item) => item.itemName.toLowerCase() == product.name.toLowerCase(),
       );
@@ -112,7 +112,7 @@ class _FetchedItemsDialogState extends ConsumerState<FetchedItemsDialog> {
         monthKey: widget.currentMonthKey,
       );
 
-      await GroceryService.addItem(newItem);
+      await ref.read(groceryServiceProvider).addItem(newItem);
 
       // Give the database stream a moment to emit the change
       await Future.delayed(const Duration(milliseconds: 100));
@@ -147,7 +147,7 @@ class _FetchedItemsDialogState extends ConsumerState<FetchedItemsDialog> {
   Future<void> _addToMasterTemplate(FetchedProduct product, int index) async {
     try {
       // Check for duplicate in master template
-      final existingTemplateItems = await GroceryService.getMasterTemplateItems();
+      final existingTemplateItems = await ref.read(groceryServiceProvider).getMasterTemplateItems();
       final isDuplicate = existingTemplateItems.any(
         (item) => item.itemName.toLowerCase().trim() == product.name.toLowerCase().trim(),
       );
@@ -166,7 +166,7 @@ class _FetchedItemsDialogState extends ConsumerState<FetchedItemsDialog> {
       }
 
       // Check if already in current month BEFORE adding template
-      final existingMonthItems = await GroceryService.getMonthlyItems(widget.currentMonthKey);
+      final existingMonthItems = await ref.read(groceryServiceProvider).getMonthlyItems(widget.currentMonthKey);
       final alreadyInMonth = existingMonthItems.any(
         (item) => item.itemName.toLowerCase().trim() == product.name.toLowerCase().trim(),
       );
@@ -179,7 +179,7 @@ class _FetchedItemsDialogState extends ConsumerState<FetchedItemsDialog> {
       );
       templateItem.isMasterTemplate = true;
 
-      await GroceryService.addItem(templateItem);
+      await ref.read(groceryServiceProvider).addItem(templateItem);
 
       // Add to current month if not already there
       if (!alreadyInMonth) {
@@ -192,7 +192,7 @@ class _FetchedItemsDialogState extends ConsumerState<FetchedItemsDialog> {
         monthItem.monthKey = widget.currentMonthKey;
         monthItem.isMasterTemplate = false;
         
-        await GroceryService.addItem(monthItem);
+        await ref.read(groceryServiceProvider).addItem(monthItem);
       }
 
       // Give streams time to update

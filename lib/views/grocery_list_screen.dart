@@ -5,7 +5,6 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:grocery_glide/model/grocery_item.dart';
 import 'package:grocery_glide/providers/currency_provider.dart';
 import 'package:grocery_glide/providers/grocery_providers.dart';
-import 'package:grocery_glide/services/grocery_service.dart';
 import 'package:grocery_glide/views/profile_and_settings_screen.dart';
 import 'package:grocery_glide/widgets/fetched_items_dialog.dart';
 import 'package:grocery_glide/widgets/month_picker_widget.dart';
@@ -29,7 +28,7 @@ class _GroceryListScreenState extends ConsumerState<GroceryListScreen> {
 
   Future<void> _deleteItem(GroceryItem item) async {
     try {
-      await GroceryService.deleteItem(item.id);
+      await ref.read(groceryServiceProvider).deleteItem(item.id);
       _showSnackBar('${item.itemName} deleted');
     } catch (e) {
       _showErrorSnackBar('Failed to delete item: $e');
@@ -38,7 +37,7 @@ class _GroceryListScreenState extends ConsumerState<GroceryListScreen> {
 
   Future<void> _toggleItemBought(GroceryItem item) async {
     try {
-      await GroceryService.toggleBoughtStatus(item.id);
+      await ref.read(groceryServiceProvider).toggleBoughtStatus(item.id);
     } catch (e) {
       _showErrorSnackBar('Failed to update item: $e');
     }
@@ -409,7 +408,7 @@ void _showMonthPicker(BuildContext context, WidgetRef ref) {
           print('Month selected: $monthKey');
         } // debug log
         // Ensure items exist for the selected month
-        await GroceryService.ensureMonthlyItemsExist(monthKey);
+        await ref.read(groceryServiceProvider).ensureMonthlyItemsExist(monthKey);
         ref.read(selectedMonthProvider.notifier).selectMonth(monthKey);
         if (!context.mounted) return;
         Navigator.pop(context);
@@ -856,9 +855,9 @@ class _AddEditGroceryDialogState extends ConsumerState<AddEditGroceryDialog> {
             ? null
             : _notesController.text.trim();
 
-        await GroceryService.updateItem(item);
+        await ref.read(groceryServiceProvider).updateItem(item);
       } else {
-        await GroceryService.addItem(item);
+        await ref.read(groceryServiceProvider).addItem(item);
       }
 
       if (!mounted) return;
