@@ -21,7 +21,9 @@ class AppUser {
   factory AppUser.fromFirebaseUser(dynamic firebaseUser) {
     return AppUser(
       uid: firebaseUser.uid,
-      email: firebaseUser.email,
+      // Accounts created before emails were normalised can still hold mixed
+      // case, so normalise on read to keep the displayed address consistent.
+      email: firebaseUser.email?.toLowerCase(),
       displayName: firebaseUser.displayName,
       photoURL: firebaseUser.photoURL,
       isAnonymous: firebaseUser.isAnonymous,

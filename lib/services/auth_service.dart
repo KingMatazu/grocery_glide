@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:grocery_glide/model/app_user.dart';
+import 'package:grocery_glide/services/auth_errors.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -21,35 +23,41 @@ class AuthService {
     return authStateChanges.map(_userFromFirebase);
   }
 
+  /// Firebase Auth matches email addresses case-sensitively, so a user typing
+  /// "GroceryGlide.Review@Gmail.com" would not find the account created as
+  /// "groceryglide.review@gmail.com" and would be told it does not exist.
+  /// Normalising here keeps every caller consistent and stops one person
+  /// creating a second account that differs only by case.
+  static String _normalizeEmail(String email) => email.trim().toLowerCase();
+
   // Sign Up with Email and Password
   Future<AppUser?> signUpWithEmail({
     required String email,
     required String password,
     String? displayName,
   }) async {
-    try {
-      final UserCredential result = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
+    final UserCredential result = await _auth.createUserWithEmailAndPassword(
+      email: _normalizeEmail(email),
+      password: password,
+    );
 
-      User? user = result.user;
+    final user = result.user;
 
-      // Update display name if provided
-      if (user != null && displayName != null && displayName.isNotEmpty) {
+    if (user != null && displayName != null && displayName.isNotEmpty) {
+      try {
         await user.updateDisplayName(displayName);
-        // IMPORTANT: Reload user to get updated data
-        await user.reload();
-        // Get the fresh user object with updated display name
-        user = _auth.currentUser;
+        // The id token goes stale after a profile update on Apple platforms, so
+        // force a refresh instead of reloading the user.
+        await user.getIdToken(true);
+      } catch (e, s) {
+        // The account already exists at this point. Reporting a failure here
+        // would tell the user sign-up failed when it succeeded, and their
+        // retry would then be rejected as an address already in use.
+        debugPrint('Display name not set after sign-up: $e\n$s');
       }
-
-      return _userFromFirebase(user);
-    } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
-    } catch (e) {
-      throw 'An unexpected error occurred: $e';
     }
+
+    return _userFromFirebase(user);
   }
 
   // Sign In with Email and Password
@@ -57,18 +65,12 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    try {
-      final UserCredential result = await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
+    final UserCredential result = await _auth.signInWithEmailAndPassword(
+      email: _normalizeEmail(email),
+      password: password,
+    );
 
-      return _userFromFirebase(result.user);
-    } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
-    } catch (e) {
-      throw 'An unexpected error occurred: $e';
-    }
+    return _userFromFirebase(result.user);
   }
 
   // Sign In with Google
@@ -82,14 +84,9 @@ class AuthService {
       );
       return _userFromFirebase(result.user);
     } on GoogleSignInException catch (e) {
-      if (e.code == GoogleSignInExceptionCode.canceled) {
-        return null;
-      }
-      throw 'Google Sign-In failed: ${e.description ?? e.code.name}';
-    } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
-    } catch (e) {
-      throw 'An unexpected error occurred: $e';
+      // Dismissing the account chooser is not an error worth reporting.
+      if (AuthErrors.isCancellation(e)) return null;
+      rethrow;
     }
   }
 
@@ -105,7 +102,7 @@ class AuthService {
   // Reset Password
   Future<void> resetPassword(String email) async {
     try {
-      await _auth.sendPasswordResetEmail(email: email.trim());
+      await _auth.sendPasswordResetEmail(email: _normalizeEmail(email));
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     } catch (e) {
@@ -128,15 +125,9 @@ class AuthService {
 
   // Update Email
   Future<void> updateEmail(String newEmail) async {
-    try {
-      final user = currentUser;
-      if (user != null) {
-        await user.verifyBeforeUpdateEmail(newEmail.trim());
-      }
-    } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
-    } catch (e) {
-      throw 'Failed to update email: $e';
+    final user = currentUser;
+    if (user != null) {
+      await user.verifyBeforeUpdateEmail(_normalizeEmail(newEmail));
     }
   }
 
@@ -187,28 +178,6 @@ class AuthService {
   }
 
   // Handle Firebase Auth Exceptions
-  String _handleAuthException(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'weak-password':
-        return 'The password is too weak. Please use at least 6 characters.';
-      case 'email-already-in-use':
-        return 'An account already exists with this email.';
-      case 'invalid-email':
-        return 'The email address is not valid.';
-      case 'user-disabled':
-        return 'This account has been disabled.';
-      case 'user-not-found':
-        return 'No account found with this email.';
-      case 'wrong-password':
-        return 'Incorrect password. Please try again.';
-      case 'too-many-requests':
-        return 'Too many attempts. Please try again later.';
-      case 'operation-not-allowed':
-        return 'This sign-in method is not enabled.';
-      case 'requires-recent-login':
-        return 'Please sign in again to continue.';
-      default:
-        return e.message ?? 'Authentication failed. Please try again.';
-    }
-  }
+  String _handleAuthException(FirebaseAuthException e) =>
+      AuthErrors.message(e, flow: AuthFlow.email);
 }

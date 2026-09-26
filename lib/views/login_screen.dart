@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grocery_glide/providers/auth_provider.dart';
+import 'package:grocery_glide/services/auth_errors.dart';
 import 'package:grocery_glide/views/first_time_setup_screen.dart';
 import 'package:grocery_glide/views/grocery_list_screen.dart';
 
@@ -22,9 +24,75 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isLogin = true;
   bool _isLoading = false;
   bool _obscurePassword = true;
+  String? _message;
+  bool _messageIsError = true;
 
   Widget get _homeScreen =>
       widget.canSkip ? const GroceryListScreen() : const FirstTimeSetupScreen();
+
+  // Errors are shown inline rather than in a SnackBar because a SnackBar
+  // dismisses itself after a few seconds, and these messages are things the
+  // user has to read and then act on.
+  void _showError(String message) {
+    if (!mounted) return;
+    setState(() {
+      _message = message;
+      _messageIsError = true;
+    });
+  }
+
+  void _showSuccess(String message) {
+    if (!mounted) return;
+    setState(() {
+      _message = message;
+      _messageIsError = false;
+    });
+  }
+
+  void _clearMessage() {
+    if (_message == null) return;
+    setState(() => _message = null);
+  }
+
+  Widget get _messageBanner {
+    final message = _message;
+    if (message == null) return const SizedBox.shrink();
+
+    final scheme = Theme.of(context).colorScheme;
+    final background =
+        _messageIsError ? scheme.errorContainer : scheme.secondaryContainer;
+    final foreground =
+        _messageIsError ? scheme.onErrorContainer : scheme.onSecondaryContainer;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            _messageIsError
+                ? Icons.error_outline
+                : Icons.check_circle_outline,
+            size: 20,
+            color: foreground,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(color: foreground, fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -37,7 +105,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _message = null;
+    });
 
     try {
       final authService = ref.read(authServiceProvider);
@@ -45,16 +116,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (_isLogin) {
         // Sign In
         await authService.signInWithEmail(
-          email: _emailController.text.trim(),
+          email: _emailController.text,
           password: _passwordController.text,
         );
       } else {
         // Sign Up
         await authService.signUpWithEmail(
-          email: _emailController.text.trim(),
+          email: _emailController.text,
           password: _passwordController.text,
-          displayName: _nameController.text.trim().isEmpty 
-            ? null 
+          displayName: _nameController.text.trim().isEmpty
+            ? null
             : _nameController.text.trim(),
         );
       }
@@ -66,15 +137,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      _showError(AuthErrors.message(e, flow: AuthFlow.email));
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -83,62 +146,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _forgotPassword() async {
-    final email = _emailController.text.trim();
-    
-    if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your email address'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+    final email = _emailController.text;
+
+    if (email.trim().isEmpty) {
+      _showError('Please enter your email address first.');
       return;
     }
 
     try {
       await ref.read(authServiceProvider).resetPassword(email);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Password reset email sent! Check your inbox.'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      _showSuccess('Password reset email sent. Check your inbox.');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showError(AuthErrors.message(e, flow: AuthFlow.email));
     }
   }
 
   Future<void> _signInWithGoogle() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _message = null;
+    });
 
     try {
       final user = await ref.read(authServiceProvider).signInWithGoogle();
-      if (user != null && mounted) {
+      // A null user means the account chooser was dismissed, which is not an
+      // error and should leave the form as it was.
+      if (user == null) return;
+
+      if (mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => _homeScreen),
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      _showError(AuthErrors.message(e, flow: AuthFlow.google));
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -199,7 +241,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     textAlign: TextAlign.center,
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 20),
+
+                  _messageBanner,
+
+                  const SizedBox(height: 8),
 
                   // Continue with Google
                   SizedBox(
@@ -278,6 +324,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
+                    textCapitalization: TextCapitalization.none,
+                    autocorrect: false,
+                    inputFormatters: [
+                      // Lowercase as the user types so the address on screen is
+                      // exactly the one that gets sent, rather than silently
+                      // changing at submit time.
+                      TextInputFormatter.withFunction(
+                        (oldValue, newValue) {
+                          final text = newValue.text.toLowerCase();
+                          if (text == newValue.text) return newValue;
+                          return newValue.copyWith(
+                            text: text,
+                            selection: TextSelection.collapsed(
+                              offset: newValue.selection.baseOffset
+                                  .clamp(0, text.length),
+                            ),
+                            composing: TextRange.empty,
+                          );
+                        },
+                      ),
+                    ],
+                    onChanged: (_) => _clearMessage(),
                     style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                     decoration: InputDecoration(
                       labelText: 'Email',
@@ -415,7 +483,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       TextButton(
                         onPressed: () {
-                          setState(() => _isLogin = !_isLogin);
+                          setState(() {
+                            _isLogin = !_isLogin;
+                            _message = null;
+                          });
                         },
                         child: Text(
                           _isLogin ? 'Sign Up' : 'Sign In',
