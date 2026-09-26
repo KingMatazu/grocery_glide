@@ -6,8 +6,8 @@ import 'package:grocery_glide/providers/grocery_providers.dart';
 import 'package:grocery_glide/services/grocery_service.dart';
 import 'package:grocery_glide/services/notification_service.dart';
 import 'package:grocery_glide/themes/theme_provider.dart';
-import 'package:grocery_glide/views/login_screen.dart';
 import 'package:grocery_glide/views/master_template_screen.dart';
+import 'package:grocery_glide/views/sign_out_success_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
@@ -449,73 +449,50 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
   }
 
 
-Widget _buildAuthSection(BuildContext context, WidgetRef ref) {
-  final currentUser = ref.watch(currentUserProvider);
-  final isAuthenticated = ref.watch(isAuthenticatedProvider);
+  Widget _buildAuthSection(BuildContext context, WidgetRef ref) {
+    final currentUser = ref.watch(currentUserProvider);
 
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Padding(
-        padding: const EdgeInsets.only(left: 4, bottom: 12),
-        child: Text(
-          'Account',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+    // The app gate only lets a signed-in user reach this screen, so the tile
+    // that used to offer "Sign In" from here is unreachable and has gone. That
+    // also removed the last place claiming data was backed up to the cloud.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 12),
+          child: Text(
+            'Account',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
-      ),
-      Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+        Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+            ),
           ),
-        ),
-        child: Column(
-          children: [
-            if (!isAuthenticated)
-              ListTile(
-                leading: Icon(
-                  Icons.login,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                title: Text(
-                  'Sign In',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                subtitle: Text(
-                  'Backup your data to the cloud',
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
-                    fontSize: 14,
-                  ),
-                ),
-                trailing: Icon(
-                  Icons.arrow_forward_ios,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-                  size: 16,
-                ),
-                onTap: () => _navigateToLogin(context),
-              )
-            else ...[
+          child: Column(
+            children: [
               ListTile(
                 leading: CircleAvatar(
                   backgroundColor: Theme.of(context).colorScheme.primary,
-                  backgroundImage: (currentUser?.photoURL != null && currentUser!.photoURL!.isNotEmpty)
-                      ? NetworkImage(currentUser.photoURL!)
-                      : null,
-                  child: (currentUser?.photoURL == null || currentUser!.photoURL!.isEmpty)
+                  backgroundImage:
+                      (currentUser?.photoURL != null &&
+                          currentUser!.photoURL!.isNotEmpty)
+                          ? NetworkImage(currentUser.photoURL!)
+                          : null,
+                  child: (currentUser?.photoURL == null ||
+                          currentUser!.photoURL!.isEmpty)
                       ? Text(
                           currentUser?.displayName?.substring(0, 1).toUpperCase() ??
-                          currentUser?.email?.substring(0, 1).toUpperCase() ?? 'U',
+                              currentUser?.email?.substring(0, 1).toUpperCase() ??
+                              'U',
                           style: const TextStyle(color: Colors.white),
                         )
                       : null,
@@ -553,70 +530,68 @@ Widget _buildAuthSection(BuildContext context, WidgetRef ref) {
                 onTap: () => _signOut(context, ref),
               ),
             ],
-          ],
-        ),
-      ),
-    ],
-  );
-}
-
-void _navigateToLogin(BuildContext context) {
-  Navigator.push(
-    context,
-    MaterialPageRoute(builder: (_) => const LoginScreen(canSkip: true)),
-  );
-}
-
-void _signOut(BuildContext context, WidgetRef ref) async {
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      title: Text(
-        'Sign Out',
-        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-      ),
-      content: Text(
-        'Are you sure you want to sign out?',
-        style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, true),
-          style: TextButton.styleFrom(foregroundColor: Colors.red),
-          child: const Text('Sign Out'),
+          ),
         ),
       ],
-    ),
-  );
+    );
+  }
 
-  if (confirmed == true) {
+  Future<void> _signOut(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        title: Text(
+          'Sign Out',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+        ),
+        content: Text(
+          'Are you sure you want to sign out?',
+          style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    // Raise this before signing out, not after. Signing out makes the auth
+    // stream emit a signed-out user straight away, and the app gate reacts to
+    // that by dropping the navigation stack, which would replace the success
+    // screen on the very frame it was pushed.
+    ref.read(signOutCelebrationProvider.notifier).begin();
+
     try {
       await ref.read(authServiceProvider).signOut();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Signed out successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      // Signing out failed, so there is no success to celebrate and the gate
+      // should keep managing the stack.
+      ref.read(signOutCelebrationProvider.notifier).end();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not sign out: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+      return;
     }
+
+    if (!context.mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const SignOutSuccessScreen()),
+    );
   }
-}
 
   Widget _buildSettingsSection(
     BuildContext context, {

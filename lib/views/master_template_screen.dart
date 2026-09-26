@@ -4,7 +4,6 @@ import 'package:grocery_glide/model/grocery_item.dart';
 import 'package:grocery_glide/providers/currency_provider.dart';
 import 'package:grocery_glide/providers/grocery_providers.dart';
 import 'package:grocery_glide/services/grocery_service.dart';
-import 'package:grocery_glide/views/grocery_list_screen.dart';
 import 'package:grocery_glide/widgets/currency_selector.dart';
 import 'package:intl/intl.dart';
 
@@ -58,12 +57,8 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
                 // Show dialog via PopScope
                 Navigator.pop(context);
               } else {
-                // No unsaved changes?, go directly to grocery list
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const GroceryListScreen()),
-                  (route) => false,
-                );
+                // No unsaved changes, so go straight back to the list.
+                _closeTemplate(context);
               }
             },
           ),
@@ -477,6 +472,23 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
     }
   }
 
+  /// Leave the template editor.
+  ///
+  /// This used to be a pushAndRemoveUntil that cleared every route and pushed
+  /// a fresh grocery list. The app gate is the root route, so clearing it would
+  /// leave the navigator with no gate and no way to enforce the signed-in
+  /// state. Popping back is enough, and lands somewhere sensible either way:
+  /// from first-time setup the gate is already showing the grocery list, and
+  /// from settings the user returns to the settings screen they came from.
+  void _closeTemplate(BuildContext context) {
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+    } else {
+      navigator.popUntil((route) => route.isFirst);
+    }
+  }
+
   Future<void> _saveTemplate() async {
     try {
       // Save all staging items as the master template
@@ -495,11 +507,7 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
       });
 
       if (mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const GroceryListScreen()),
-          (route) => false,
-        );
+        _closeTemplate(context);
       }
     } catch (e) {
       if (!mounted) return;
@@ -544,12 +552,7 @@ class _MasterTemplateScreenState extends ConsumerState<MasterTemplateScreen> {
     );
 
     if (shouldDiscard == true && mounted) {
-      // Navigate to grocery List Screen instead
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const GroceryListScreen()),
-        (route) => false,
-      );
+      _closeTemplate(context);
       return false;
     }
 

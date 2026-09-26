@@ -3,13 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grocery_glide/providers/auth_provider.dart';
 import 'package:grocery_glide/services/auth_errors.dart';
-import 'package:grocery_glide/views/first_time_setup_screen.dart';
-import 'package:grocery_glide/views/grocery_list_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  final bool canSkip;
-
-  const LoginScreen({super.key, this.canSkip = true});
+  const LoginScreen({super.key});
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -26,9 +22,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscurePassword = true;
   String? _message;
   bool _messageIsError = true;
-
-  Widget get _homeScreen =>
-      widget.canSkip ? const GroceryListScreen() : const FirstTimeSetupScreen();
 
   // Errors are shown inline rather than in a SnackBar because a SnackBar
   // dismisses itself after a few seconds, and these messages are things the
@@ -125,17 +118,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           email: _emailController.text,
           password: _passwordController.text,
           displayName: _nameController.text.trim().isEmpty
-            ? null
-            : _nameController.text.trim(),
+              ? null
+              : _nameController.text.trim(),
         );
       }
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => _homeScreen),
-        );
-      }
+      // No navigation here on purpose. The app gate watches the auth stream and
+      // swaps its own child, so pushing a destination from this screen used to
+      // stack a second copy of the grocery list on top of the first.
     } catch (e) {
       _showError(AuthErrors.message(e, flow: AuthFlow.email));
     } finally {
@@ -170,15 +160,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final user = await ref.read(authServiceProvider).signInWithGoogle();
       // A null user means the account chooser was dismissed, which is not an
-      // error and should leave the form as it was.
+      // error and should leave the form as it was. The gate handles the
+      // successful case, as it does for email.
       if (user == null) return;
-
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => _homeScreen),
-        );
-      }
     } catch (e) {
       _showError(AuthErrors.message(e, flow: AuthFlow.google));
     } finally {
@@ -231,9 +215,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                   // Subtitle
                   Text(
-                    _isLogin 
+                    _isLogin
                       ? 'Sign in to access your grocery lists'
-                      : 'Sign up to save your lists in the cloud',
+                      : 'Create an account to get started',
                     style: TextStyle(
                       color: Theme.of(context).textTheme.bodyMedium?.color,
                       fontSize: 14,
@@ -498,25 +482,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ],
                   ),
-
-                  // Skip Button
-                  if (widget.canSkip) ...[
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (_) => _homeScreen),
-                        );
-                      },
-                      child: Text(
-                        'Skip for now',
-                        style: TextStyle(
-                          color: Theme.of(context).textTheme.bodyMedium?.color,
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),

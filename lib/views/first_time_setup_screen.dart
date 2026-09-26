@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:grocery_glide/views/grocery_list_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:grocery_glide/providers/startup_provider.dart';
 import 'package:grocery_glide/views/master_template_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-class FirstTimeSetupScreen extends StatelessWidget {
+class FirstTimeSetupScreen extends ConsumerWidget {
   const FirstTimeSetupScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -42,7 +42,7 @@ class FirstTimeSetupScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => _goToMasterTemplate(context),
+                  onPressed: () => _goToMasterTemplate(context, ref),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).colorScheme.primary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -67,7 +67,7 @@ class FirstTimeSetupScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: TextButton(
-                  onPressed: () => _skipSetup(context),
+                  onPressed: () => _skipSetup(ref),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -88,25 +88,20 @@ class FirstTimeSetupScreen extends StatelessWidget {
     );
   }
 
-  void _goToMasterTemplate(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('first_time_setup_complete', true);
-    if (context.mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MasterTemplateScreen()),
-      );
-    }
+  Future<void> _goToMasterTemplate(BuildContext context, WidgetRef ref) async {
+    await completeFirstTimeSetup(ref);
+    if (!context.mounted) return;
+    // Pushed, not pushed-and-replaced: the gate stays underneath as the root
+    // route, and it will already be showing the grocery list by the time this
+    // screen is popped.
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const MasterTemplateScreen()),
+    );
   }
 
-  void _skipSetup(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('first_time_setup_complete', true);
-    if (context.mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const GroceryListScreen()),
-      );
-    }
+  Future<void> _skipSetup(WidgetRef ref) async {
+    // No navigation. Invalidating the setup flags is enough: the gate swaps
+    // its own child to the grocery list.
+    await completeFirstTimeSetup(ref);
   }
 }

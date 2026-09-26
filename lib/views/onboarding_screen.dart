@@ -1,16 +1,16 @@
 // Create: lib/views/onboarding_screen.dart
 import 'package:flutter/material.dart';
-import 'package:grocery_glide/views/login_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:grocery_glide/providers/startup_provider.dart';
 
-class OnboardingScreen extends StatefulWidget {
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
   @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
@@ -54,15 +54,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _completeOnboarding() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('onboarding_complete', true);
-    
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen(canSkip: false)),
-      );
-    }
+    // Hand control back to the app gate rather than pushing the sign-in
+    // screen. Pushing would leave this screen on the stack behind it, and the
+    // gate owns the root route.
+    await completeOnboarding(ref);
   }
 
   @override
