@@ -8,6 +8,7 @@ import 'package:grocery_glide/services/notification_service.dart';
 import 'package:grocery_glide/themes/theme_provider.dart';
 import 'package:grocery_glide/views/master_template_screen.dart';
 import 'package:grocery_glide/views/sign_out_success_screen.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
@@ -897,7 +898,18 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showAbout(BuildContext context) {
+  Future<void> _showAbout(BuildContext context) async {
+    // Read from the platform rather than a literal, so the About dialog can
+    // never drift from what was actually built and shipped.
+    var version = 'unknown';
+    try {
+      final info = await PackageInfo.fromPlatform();
+      version = '${info.version} (${info.buildNumber})';
+    } catch (_) {
+      // Leave the placeholder; an About dialog is not worth failing over.
+    }
+    if (!context.mounted) return;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -926,7 +938,7 @@ class ProfileAndSettingsScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Version 1.0.0',
+              'Version $version',
               style: TextStyle(
                 color: Theme.of(context).textTheme.bodyMedium?.color,
                 fontSize: 14,

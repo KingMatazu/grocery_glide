@@ -23,7 +23,10 @@ jobs:
         run: flutter pub get
 
       - name: Build unsigned Runner.app
-        run: flutter build ios --release --no-codesign --build-name=1.0.0 --build-number=1
+        # No --build-name/--build-number override: these used to pin every IPA
+        # to 1.0.0 (1), so consecutive builds shared a CFBundleVersion and an
+        # over-install would silently not update. Let pubspec drive it.
+        run: flutter build ios --release --no-codesign
 
       - name: Package unsigned IPA (Payload zip)
         run: |
